@@ -13,13 +13,22 @@ export function RemovedStructureNotice({
         Situação no organograma
       </p>
       <h3 className="mt-1 text-sm font-bold text-rose-950">
-        Estrutura não localizada no organograma atual
+        Fora do organograma atual
       </h3>
-      <p className="mt-4 text-sm leading-6 text-rose-900/80">
-        <span className="font-semibold">{previousName}</span> consta no regimento
-        de 2024, mas a planilha registra “{currentName}”. Por isso, este item é
-        apenas informativo e não exige uma nova competência.
-      </p>
+      <dl className="mt-4 grid gap-3 text-sm text-rose-950">
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.1em] text-rose-700">
+            Regimento 2024
+          </dt>
+          <dd className="mt-0.5 font-semibold">{previousName}</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase tracking-[0.1em] text-rose-700">
+            Organograma atual
+          </dt>
+          <dd className="mt-0.5 font-semibold">{currentName}</dd>
+        </div>
+      </dl>
     </section>
   );
 }

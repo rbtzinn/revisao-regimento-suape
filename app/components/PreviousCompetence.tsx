@@ -63,7 +63,7 @@ export function PreviousCompetence({
         </div>
       ) : (
         <div className="m-3 border-l-4 border-[#f5c400] bg-[#fff9d8] p-4 text-sm leading-6 text-[#5b4a00] sm:m-4">
-          Nova estrutura. Redija a competência completa no campo ao lado.
+          Sem texto no regimento de 2024.
         </div>
       )}
     </section>

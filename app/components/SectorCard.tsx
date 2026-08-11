@@ -91,10 +91,9 @@ export function SectorCard({
           <span className="mt-1 block [overflow-wrap:anywhere] text-[15px] font-black leading-snug text-[#0b1f2a] sm:text-[17px]">
             {displayName}
           </span>
-          <span className="mt-1 block [overflow-wrap:anywhere] text-xs leading-5 text-slate-600 sm:text-sm">
-            {isRemoved ? (
-              "Não consta no organograma atual"
-            ) : isNew ? (
+          {!isRemoved ? (
+            <span className="mt-1 block [overflow-wrap:anywhere] text-xs leading-5 text-slate-600 sm:text-sm">
+              {isNew ? (
               "Sem competência em 2024"
             ) : previousName ? (
               <>
@@ -103,8 +102,9 @@ export function SectorCard({
               </>
             ) : (
               "Nome anterior não informado"
-            )}
-          </span>
+              )}
+            </span>
+          ) : null}
           <span className="mt-2.5 flex min-w-0 flex-wrap items-center gap-1.5">
             <StatusBadge status={structureStatus} />
             {!isRemoved ? (

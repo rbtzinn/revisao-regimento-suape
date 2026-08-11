@@ -8,7 +8,6 @@ import {
   SearchFilters,
   SectorCard,
 } from "@/app/components";
-import { PortalIntro } from "@/app/components/PortalIntro";
 import {
   EmptyState,
   ErrorState,
@@ -105,16 +104,13 @@ export function ReviewWorkspace() {
       />
 
       <main className="mx-auto w-full max-w-[1500px] space-y-4 px-3 py-3 sm:px-5 sm:py-5 lg:px-7 lg:py-6">
-        <div className="grid gap-3 md:grid-cols-[minmax(0,0.92fr)_minmax(360px,1.08fr)] md:items-stretch">
-          <PortalIntro />
-          <ProgressSummary
-            total={reviewable.length}
-            mappedTotal={data.records.length}
-            reviewed={reviewed}
-            pending={reviewable.length - reviewed}
-            newStructures={newStructures}
-          />
-        </div>
+        <ProgressSummary
+          total={reviewable.length}
+          mappedTotal={data.records.length}
+          reviewed={reviewed}
+          pending={reviewable.length - reviewed}
+          newStructures={newStructures}
+        />
 
         <div className="grid min-w-0 gap-4 lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-5">
           <aside className="no-print min-w-0 lg:sticky lg:top-32">
@@ -184,7 +180,7 @@ export function ReviewWorkspace() {
       </main>
 
       <footer className="border-t border-slate-300 bg-[#062d46] px-4 py-4 text-center text-[11px] leading-5 text-slate-200 sm:text-xs">
-        Regimento de 2024 · Organograma de 16/06/2026 · Alterações salvas na planilha de trabalho
+        Regimento de 2024 · Organograma de 16/06/2026
       </footer>
     </div>
   );

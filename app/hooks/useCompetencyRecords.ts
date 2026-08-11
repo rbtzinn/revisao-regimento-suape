@@ -131,7 +131,7 @@ export function useCompetencyRecords() {
   const markPreviousCopied = useCallback((recordId: string) => {
     setFeedback((current) => ({
       ...current,
-      [recordId]: "Texto anterior copiado. Salve para confirmar.",
+      [recordId]: "Texto de 2024 copiado.",
     }));
   }, []);
 

@@ -39,9 +39,6 @@ export function EmptyState() {
   return (
     <div className="border border-dashed border-slate-400 bg-white/70 p-8 text-center">
       <p className="text-base font-bold text-slate-800">Nenhuma estrutura encontrada</p>
-      <p className="mt-1 text-sm text-slate-500">
-        Ajuste a diretoria, a busca ou o filtro selecionado.
-      </p>
     </div>
   );
 }

@@ -43,11 +43,8 @@ export function CompetenceEditor({
   return (
     <section className="border border-slate-300 border-t-4 border-t-[#21b6c7] bg-white">
       <header className="border-b border-slate-200 bg-[#f3f6f6] px-3 py-3 sm:px-4">
-        <p className="font-utility text-[10px] font-bold uppercase tracking-[0.15em] text-[#0b6b88]">
-          Novo regimento
-        </p>
-        <h3 className="mt-0.5 text-sm font-black text-[#0b1f2a]">
-          Competência após a revisão
+        <h3 className="text-sm font-black text-[#0b1f2a]">
+          Competência no novo regimento
         </h3>
         <p className="sr-only">Setor: {currentName}</p>
       </header>
@@ -55,9 +52,9 @@ export function CompetenceEditor({
       <div className="p-3 sm:p-4">
         <label
           htmlFor={textareaId}
-          className="font-utility block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600"
+          className="sr-only"
         >
-          Texto final
+          Competência no novo regimento
         </label>
         <textarea
           id={textareaId}
@@ -67,10 +64,10 @@ export function CompetenceEditor({
           rows={8}
           placeholder={
             isNewStructure
-              ? "Escreva a competência completa desta nova estrutura…"
-              : "Revise ou mantenha a competência anterior…"
+              ? "Competência da nova estrutura"
+              : "Competência do novo regimento"
           }
-          className="mt-2 min-h-48 w-full resize-y rounded-[3px] border border-slate-300 bg-[#f8fafa] p-3 text-[14px] leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-[#0b6b88] focus:bg-white focus:ring-2 focus:ring-[#21b6c7]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-64 sm:p-4 sm:text-[15px] sm:leading-7"
+          className="min-h-48 w-full resize-y rounded-[3px] border border-slate-300 bg-[#f8fafa] p-3 text-[14px] leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-[#0b6b88] focus:bg-white focus:ring-2 focus:ring-[#21b6c7]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-64 sm:p-4 sm:text-[15px] sm:leading-7"
         />
 
         <SaveFeedback
