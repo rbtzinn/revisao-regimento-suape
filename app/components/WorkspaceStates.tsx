@@ -9,7 +9,7 @@ export function LoadingState() {
       {[0, 1, 2].map((item) => (
         <div
           key={item}
-          className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white/80"
+          className="h-24 animate-pulse border border-slate-300 bg-white/80"
         />
       ))}
       <span className="sr-only">Carregando os dados da planilha…</span>
@@ -19,7 +19,7 @@ export function LoadingState() {
 
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   return (
-    <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+    <div className="border-l-4 border-red-600 bg-red-50 p-6 text-center ring-1 ring-red-200">
       <h3 className="text-base font-bold text-red-950">A planilha não respondeu</h3>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-red-800">
         {message}
@@ -27,7 +27,7 @@ export function ErrorState({ message, onRetry }: ErrorStateProps) {
       <button
         type="button"
         onClick={onRetry}
-        className="mt-4 min-h-11 rounded-xl bg-red-800 px-5 text-sm font-bold text-white transition hover:bg-red-700"
+        className="mt-4 min-h-11 rounded-[3px] bg-red-800 px-5 text-sm font-bold text-white transition hover:bg-red-700"
       >
         Tentar novamente
       </button>
@@ -37,7 +37,7 @@ export function ErrorState({ message, onRetry }: ErrorStateProps) {
 
 export function EmptyState() {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-8 text-center">
+    <div className="border border-dashed border-slate-400 bg-white/70 p-8 text-center">
       <p className="text-base font-bold text-slate-800">Nenhuma estrutura encontrada</p>
       <p className="mt-1 text-sm text-slate-500">
         Ajuste a diretoria, a busca ou o filtro selecionado.

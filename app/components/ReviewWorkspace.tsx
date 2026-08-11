@@ -62,11 +62,15 @@ export function ReviewWorkspace() {
   ).length;
 
   const directorateItems = DIRECTORATES.map((name) => {
-    const records = reviewable.filter((record) => record.directorate === name);
+    const records = data.records.filter((record) => record.directorate === name);
+    const reviewableRecords = records.filter(
+      (record) => getStructureStatus(record) !== "removed",
+    );
     return {
       id: name,
       total: records.length,
-      reviewed: records.filter(isRecordCompleted).length,
+      reviewable: reviewableRecords.length,
+      reviewed: reviewableRecords.filter(isRecordCompleted).length,
       shortLabel: name,
     };
   });
@@ -92,7 +96,7 @@ export function ReviewWorkspace() {
     directorate === "all" ? "Todas as diretorias" : directorate;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-[#0b1f2a]">
       <ProductHeader
         lastSyncAt={formatSyncTime(data.lastSyncAt)}
         spreadsheetUrl={SPREADSHEET_URL}
@@ -100,17 +104,20 @@ export function ReviewWorkspace() {
         onSync={() => void data.refresh()}
       />
 
-      <main className="mx-auto w-full max-w-[1600px] space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-5 lg:px-8 lg:py-7">
-        <PortalIntro />
-        <ProgressSummary
-          total={reviewable.length}
-          reviewed={reviewed}
-          pending={reviewable.length - reviewed}
-          newStructures={newStructures}
-        />
+      <main className="mx-auto w-full max-w-[1500px] space-y-4 px-3 py-3 sm:px-5 sm:py-5 lg:px-7 lg:py-6">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,0.92fr)_minmax(360px,1.08fr)] md:items-stretch">
+          <PortalIntro />
+          <ProgressSummary
+            total={reviewable.length}
+            mappedTotal={data.records.length}
+            reviewed={reviewed}
+            pending={reviewable.length - reviewed}
+            newStructures={newStructures}
+          />
+        </div>
 
-        <div className="grid gap-4 lg:grid-cols-[250px_minmax(0,1fr)] lg:items-start lg:gap-5">
-          <aside className="no-print lg:sticky lg:top-28">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-5">
+          <aside className="no-print min-w-0 lg:sticky lg:top-32">
             <DirectorateNav
               items={directorateItems}
               selectedId={directorate}
@@ -118,21 +125,21 @@ export function ReviewWorkspace() {
             />
           </aside>
 
-          <section className="min-w-0 space-y-4" aria-labelledby="records-title">
-            <div className="flex flex-col gap-1 px-1 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="font-utility text-xs font-bold uppercase tracking-[0.12em] text-sky-800">
-                  Competências por setor
+          <section className="min-w-0 space-y-3" aria-labelledby="records-title">
+            <div className="flex min-w-0 items-end justify-between gap-3 border-l-4 border-[#f5c400] bg-white px-3 py-2 ring-1 ring-slate-200 sm:px-4 sm:py-3">
+              <div className="min-w-0">
+                <p className="font-utility text-[10px] font-bold uppercase tracking-[0.16em] text-[#0b6b88] sm:text-xs">
+                  Área selecionada
                 </p>
                 <h2
                   id="records-title"
-                  className="mt-1 text-2xl font-bold tracking-[-0.035em] text-slate-950"
+                  className="mt-0.5 break-words text-xl font-black tracking-[-0.025em] text-[#0b1f2a] sm:text-2xl"
                 >
                   {sectionTitle}
                 </h2>
               </div>
-              <p className="text-sm text-slate-500">
-                Abra um setor para comparar e editar.
+              <p className="font-utility shrink-0 text-right text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-xs">
+                {filteredRecords.length} {filteredRecords.length === 1 ? "setor" : "setores"}
               </p>
             </div>
 
@@ -157,7 +164,7 @@ export function ReviewWorkspace() {
             ) : null}
 
             {!data.isLoading && filteredRecords.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {filteredRecords.map((record) => (
                   <SectorCard
                     key={record.id}
@@ -176,9 +183,8 @@ export function ReviewWorkspace() {
         </div>
       </main>
 
-      <footer className="border-t border-slate-200/80 bg-white/70 px-4 py-5 text-center text-xs leading-5 text-slate-500">
-        Fonte única: Regimento Interno de 2024 × Organograma de 16/06/2026.
-        As alterações salvas são registradas na coluna D da planilha.
+      <footer className="border-t border-slate-300 bg-[#062d46] px-4 py-4 text-center text-[11px] leading-5 text-slate-200 sm:text-xs">
+        Regimento de 2024 · Organograma de 16/06/2026 · Alterações salvas na planilha de trabalho
       </footer>
     </div>
   );

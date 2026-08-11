@@ -33,7 +33,7 @@ test("server-renders the review portal", async () => {
   const html = await response.text();
   assert.match(html, /<html lang="pt-BR">/i);
   assert.match(html, /<title>Revisão do Regimento Interno<\/title>/i);
-  assert.match(html, /Compare, revise e salve o texto final\./i);
+  assert.match(html, /Revise por diretoria/i);
   assert.match(html, /Regimento 2024 × organograma atual/i);
   assert.match(html, /Abrir planilha/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);

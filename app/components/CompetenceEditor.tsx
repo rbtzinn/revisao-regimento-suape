@@ -41,66 +41,64 @@ export function CompetenceEditor({
   }
 
   return (
-    <section className="rounded-2xl border border-teal-200 bg-white p-4 ring-4 ring-teal-700/[0.03] sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-teal-600">
-            Novo regimento
-          </p>
-          <h3 className="mt-1 text-sm font-bold text-slate-900">
-            Competência após a revisão
-          </h3>
-        </div>
-        <span className="max-w-full truncate rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">
-          {currentName}
-        </span>
-      </div>
+    <section className="border border-slate-300 border-t-4 border-t-[#21b6c7] bg-white">
+      <header className="border-b border-slate-200 bg-[#f3f6f6] px-3 py-3 sm:px-4">
+        <p className="font-utility text-[10px] font-bold uppercase tracking-[0.15em] text-[#0b6b88]">
+          Novo regimento
+        </p>
+        <h3 className="mt-0.5 text-sm font-black text-[#0b1f2a]">
+          Competência após a revisão
+        </h3>
+        <p className="sr-only">Setor: {currentName}</p>
+      </header>
 
-      <label
-        htmlFor={textareaId}
-        className="mt-4 block text-xs font-semibold text-slate-600"
-      >
-        Texto que ficará no regimento
-      </label>
-      <textarea
-        id={textareaId}
-        value={draft}
-        onChange={(event) => onDraftChange(event.target.value)}
-        disabled={disabled || isSaving}
-        rows={12}
-        placeholder={
-          isNewStructure
-            ? "Escreva a competência completa desta nova estrutura…"
-            : "Revise ou mantenha a competência anterior…"
-        }
-        className="mt-2 min-h-72 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-[15px] leading-7 text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10 disabled:cursor-not-allowed disabled:opacity-60"
-      />
+      <div className="p-3 sm:p-4">
+        <label
+          htmlFor={textareaId}
+          className="font-utility block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600"
+        >
+          Texto final
+        </label>
+        <textarea
+          id={textareaId}
+          value={draft}
+          onChange={(event) => onDraftChange(event.target.value)}
+          disabled={disabled || isSaving}
+          rows={8}
+          placeholder={
+            isNewStructure
+              ? "Escreva a competência completa desta nova estrutura…"
+              : "Revise ou mantenha a competência anterior…"
+          }
+          className="mt-2 min-h-48 w-full resize-y rounded-[3px] border border-slate-300 bg-[#f8fafa] p-3 text-[14px] leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-[#0b6b88] focus:bg-white focus:ring-2 focus:ring-[#21b6c7]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-64 sm:p-4 sm:text-[15px] sm:leading-7"
+        />
 
-      <SaveFeedback
-        saveState={saveState}
-        feedbackMessage={feedbackMessage}
-        isDirty={isDirty}
-      />
+        <SaveFeedback
+          saveState={saveState}
+          feedbackMessage={feedbackMessage}
+          isDirty={isDirty}
+        />
 
-      <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        {canKeepPrevious ? (
+        <div className="mt-3 grid gap-2 sm:flex sm:justify-end">
+          {canKeepPrevious ? (
+            <button
+              type="button"
+              onClick={keepPreviousText}
+              disabled={disabled || isSaving}
+              className="min-h-11 rounded-[3px] border border-slate-400 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#21b6c7]"
+            >
+              Usar texto de 2024
+            </button>
+          ) : null}
           <button
             type="button"
-            onClick={keepPreviousText}
-            disabled={disabled || isSaving}
-            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2"
+            onClick={() => void onSave()}
+            disabled={disabled || isSaving || !isDirty}
+            className="min-h-11 rounded-[3px] bg-[#f5c400] px-5 text-sm font-black text-[#0b1f2a] transition hover:bg-[#ffda1a] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b6b88]"
           >
-            Manter texto anterior
+            {isSaving ? "Salvando…" : "Salvar competência"}
           </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => void onSave()}
-          disabled={disabled || isSaving || !isDirty}
-          className="min-h-11 rounded-xl bg-teal-800 px-5 text-sm font-bold text-white shadow-sm shadow-teal-900/20 transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2"
-        >
-          {isSaving ? "Salvando…" : "Salvar alteração"}
-        </button>
+        </div>
       </div>
     </section>
   );
@@ -119,23 +117,25 @@ function SaveFeedback({
 }: SaveFeedbackProps) {
   const meta = saveStateMeta[saveState];
 
+  if (saveState === "idle" && !isDirty && !feedbackMessage) return null;
+
   return (
     <div
-      className="mt-3 flex min-h-6 items-start gap-2"
+      className="mt-2 flex min-h-5 items-start gap-2"
       aria-live="polite"
       aria-atomic="true"
     >
       {saveState !== "idle" ? (
         <span
           aria-hidden="true"
-          className={`mt-1.5 size-2 shrink-0 rounded-full ${
+          className={`mt-1.5 size-2 shrink-0 ${
             saveState === "saved"
               ? "bg-emerald-500"
               : saveState === "error"
                 ? "bg-red-500"
                 : saveState === "conflict"
                   ? "bg-amber-500"
-                  : "animate-pulse bg-teal-500"
+                  : "animate-pulse bg-[#21b6c7]"
           }`}
         />
       ) : null}
@@ -148,9 +148,7 @@ function SaveFeedback({
         }
       >
         {feedbackMessage ??
-          (saveState === "idle" && !isDirty
-            ? "Nenhuma alteração local."
-            : meta.label)}
+          (saveState === "idle" && !isDirty ? "Sem alterações." : meta.label)}
       </p>
     </div>
   );

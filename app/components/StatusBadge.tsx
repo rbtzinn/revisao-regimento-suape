@@ -19,11 +19,11 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${meta.className}`}
+      className={`font-utility inline-flex shrink-0 items-center gap-1.5 rounded-[3px] border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.06em] sm:text-[11px] ${meta.className}`}
     >
       <span
         aria-hidden="true"
-        className={`size-1.5 rounded-full ${statusDotClasses[status]}`}
+        className={`size-1.5 ${statusDotClasses[status]}`}
       />
       {meta.label}
     </span>

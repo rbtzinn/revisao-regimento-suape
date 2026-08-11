@@ -8,7 +8,7 @@ export function RemovedStructureNotice({
   currentName,
 }: RemovedStructureNoticeProps) {
   return (
-    <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 sm:p-5">
+    <section className="border-l-4 border-rose-500 bg-rose-50 p-4 ring-1 ring-rose-200 sm:p-5">
       <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600">
         Situação no organograma
       </p>

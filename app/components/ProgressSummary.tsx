@@ -1,5 +1,6 @@
 type ProgressSummaryProps = {
   total: number;
+  mappedTotal?: number;
   reviewed: number;
   pending: number;
   newStructures: number;
@@ -7,6 +8,7 @@ type ProgressSummaryProps = {
 
 export function ProgressSummary({
   total,
+  mappedTotal = total,
   reviewed,
   pending,
   newStructures,
@@ -16,119 +18,88 @@ export function ProgressSummary({
   return (
     <section
       aria-labelledby="progress-title"
-      className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-[1.6fr_repeat(3,1fr)]"
+      className="grid overflow-hidden rounded-[6px] border border-[#062D46]/30 bg-white lg:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.4fr)]"
     >
-      <div className="relative col-span-3 overflow-hidden rounded-2xl border border-cyan-300/15 bg-[#071f3d] p-4 text-white shadow-[0_14px_35px_-22px_rgba(7,31,61,0.85)] sm:p-5 md:col-span-2 xl:col-span-1">
-        <span
-          aria-hidden="true"
-          className="absolute -right-8 -top-12 size-32 rounded-full border border-cyan-300/15"
-        />
-        <div className="relative flex items-start justify-between gap-3 sm:gap-4">
+      <div className="bg-[#062D46] px-3 py-2.5 text-white sm:px-4 sm:py-3.5 lg:border-r lg:border-white/15">
+        <div className="flex items-end justify-between gap-4">
           <div>
             <p
               id="progress-title"
-              className="text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-300 sm:text-xs"
+              className="text-[10px] font-black uppercase tracking-[0.15em] text-[#21B6C7]"
             >
-              Progresso geral
+              Revisão concluída
             </p>
-            <p className="mt-0.5 text-3xl font-black tracking-[-0.05em] sm:mt-1 sm:text-4xl">
+            <p className="text-2xl font-black tabular-nums tracking-[-0.04em] sm:mt-0.5 sm:text-3xl">
               {percentage}%
             </p>
           </div>
-          <div className="rounded-xl border border-cyan-100/15 bg-cyan-50/10 px-2.5 py-1.5 text-right sm:px-3 sm:py-2">
-            <p className="text-[10px] text-cyan-100/70 sm:text-xs">
-              Concluídos
-            </p>
-            <p className="text-xs font-bold tabular-nums sm:text-sm">
-              {reviewed} / {total}
-            </p>
-          </div>
+          <p className="pb-0.5 text-right text-xs font-bold tabular-nums text-white/75">
+            {reviewed} de {total}
+            <span className="block text-[9px] font-semibold uppercase tracking-[0.1em] text-cyan-100/55">
+              competências
+            </span>
+          </p>
         </div>
+
         <progress
           value={reviewed}
           max={Math.max(total, 1)}
           aria-label={`${percentage}% da revisão concluída`}
-          className="relative mt-3 h-1.5 w-full overflow-hidden rounded-full accent-cyan-300 sm:mt-5 sm:h-2 [&::-moz-progress-bar]:bg-cyan-300 [&::-webkit-progress-bar]:bg-white/15 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-cyan-300"
+          className="mt-2 h-1.5 w-full overflow-hidden accent-[#21B6C7] sm:mt-3 sm:h-2 [&::-moz-progress-bar]:bg-[#21B6C7] [&::-webkit-progress-bar]:bg-white/15 [&::-webkit-progress-value]:bg-[#21B6C7]"
         />
-        <p className="relative mt-2 hidden text-xs leading-relaxed text-slate-300 sm:block">
-          Cada competência salva é refletida diretamente na planilha de trabalho.
-        </p>
       </div>
 
-      <MetricCard
-        label="Estruturas mapeadas"
-        shortLabel="Estruturas"
-        value={total}
-        detail="no organograma atual"
-        tone="navy"
-      />
-      <MetricCard
-        label="Aguardando revisão"
-        shortLabel="Pendentes"
-        value={pending}
-        detail="competências pendentes"
-        tone="yellow"
-      />
-      <MetricCard
-        label="Novas estruturas"
-        shortLabel="Novas"
-        value={newStructures}
-        detail="exigem texto completo"
-        tone="cyan"
-      />
+      <dl className="grid min-w-0 grid-cols-3 divide-x divide-[#062D46]/15 bg-[#F5F7F7]">
+        <Metric
+          label="Estruturas mapeadas"
+          shortLabel="Estruturas"
+          value={mappedTotal}
+          accent="navy"
+        />
+        <Metric
+          label="Aguardando revisão"
+          shortLabel="Pendentes"
+          value={pending}
+          accent="yellow"
+        />
+        <Metric
+          label="Novas estruturas"
+          shortLabel="Novas"
+          value={newStructures}
+          accent="cyan"
+        />
+      </dl>
     </section>
   );
 }
 
-type MetricCardProps = {
+type MetricProps = {
   label: string;
   shortLabel: string;
   value: number;
-  detail: string;
-  tone: "navy" | "yellow" | "cyan";
+  accent: "navy" | "yellow" | "cyan";
 };
 
-const metricToneClasses: Record<MetricCardProps["tone"], string> = {
-  navy: "border-[#071f3d]/10 bg-[#071f3d]/[0.06] text-[#071f3d]",
-  yellow: "border-amber-300/60 bg-amber-100/80 text-amber-900",
-  cyan: "border-cyan-300/50 bg-cyan-50 text-cyan-800",
+const accentClasses: Record<MetricProps["accent"], string> = {
+  navy: "bg-[#0B6B88]",
+  yellow: "bg-[#F5C400]",
+  cyan: "bg-[#21B6C7]",
 };
 
-const metricMark: Record<MetricCardProps["tone"], string> = {
-  navy: "#",
-  yellow: "!",
-  cyan: "+",
-};
-
-function MetricCard({
-  label,
-  shortLabel,
-  value,
-  detail,
-  tone,
-}: MetricCardProps) {
+function Metric({ label, shortLabel, value, accent }: MetricProps) {
   return (
-    <div className="flex min-w-0 flex-col rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[0_8px_24px_-20px_rgba(7,31,61,0.65)] sm:min-h-32 sm:justify-between sm:rounded-2xl sm:p-4">
-      <div
-        className={`grid size-7 place-items-center rounded-lg border text-xs font-black sm:size-9 sm:rounded-xl sm:text-sm ${metricToneClasses[tone]}`}
+    <div className="relative flex min-w-0 flex-col px-2.5 py-2.5 sm:px-4 sm:py-4">
+      <span
         aria-hidden="true"
-      >
-        {metricMark[tone]}
-      </div>
-      <div className="mt-2 min-w-0 sm:mt-4">
-        <p className="text-xl font-black tabular-nums tracking-[-0.04em] text-[#071f3d] sm:text-2xl">
-          {value}
-        </p>
-        <p className="text-[10px] font-bold leading-tight text-slate-600 sm:hidden">
-          {shortLabel}
-        </p>
-        <p className="hidden text-sm font-semibold text-slate-700 sm:block">
-          {label}
-        </p>
-        <p className="mt-0.5 hidden text-xs text-slate-400 sm:block">
-          {detail}
-        </p>
-      </div>
+        className={`absolute inset-x-0 top-0 h-1 ${accentClasses[accent]}`}
+      />
+      <dt className="order-2 mt-0.5 text-[10px] font-bold leading-tight text-[#0B1F2A]/65 sm:text-xs">
+        <span className="sm:hidden">{shortLabel}</span>
+        <span className="hidden sm:inline">{label}</span>
+      </dt>
+      <dd className="order-1 text-xl font-black tabular-nums tracking-[-0.035em] text-[#062D46] sm:text-2xl">
+        {value}
+      </dd>
     </div>
   );
 }

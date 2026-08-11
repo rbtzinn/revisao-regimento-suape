@@ -2,14 +2,16 @@
 
 :root {
   color-scheme: light;
-  --ink-950: #082b3e;
-  --ink-800: #0d4660;
-  --port-700: #0b6280;
-  --port-500: #11a6c2;
-  --cyan-200: #c7edf2;
-  --surface: #f4f9fa;
-  --surface-deep: #eaf3f5;
-  --compliance-400: #f3c545;
+  --ink-950: #0b1f2a;
+  --ink-800: #173b4d;
+  --port-900: #062d46;
+  --port-700: #0b6b88;
+  --port-500: #21b6c7;
+  --cyan-200: #bde8ed;
+  --surface: #f5f7f7;
+  --surface-deep: #e9eff0;
+  --compliance-400: #f5c400;
+  --line: #cbd6d9;
   --success-600: #147a68;
   --danger-600: #b44b42;
 }
@@ -20,19 +22,23 @@
 
 html {
   min-width: 320px;
+  overflow-x: hidden;
   scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at 88% 6%, rgb(17 166 194 / 13%), transparent 26rem),
-    linear-gradient(180deg, #f8fbfc 0%, var(--surface) 46%, var(--surface-deep) 100%);
+  overflow-x: hidden;
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(rgb(6 45 70 / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(6 45 70 / 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
   color: var(--ink-950);
   font-family:
-    Aptos, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+    Aptos, "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, sans-serif;
   text-rendering: optimizeLegibility;
 }
 
@@ -40,11 +46,12 @@ h1,
 h2,
 h3 {
   font-family:
-    "Aptos Display", Bahnschrift, "Arial Narrow", "Segoe UI", sans-serif;
+    "Aptos Display", "Segoe UI Variable Display", Bahnschrift, "Arial Narrow",
+    "Segoe UI", sans-serif;
 }
 
 .font-utility {
-  font-family: Bahnschrift, "Segoe UI", sans-serif;
+  font-family: Bahnschrift, "Arial Narrow", "Segoe UI", sans-serif;
 }
 
 button,
@@ -71,8 +78,8 @@ textarea {
 }
 
 :focus-visible {
-  outline: 3px solid rgb(17 166 194 / 42%);
-  outline-offset: 3px;
+  outline: 3px solid rgb(33 182 199 / 52%);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

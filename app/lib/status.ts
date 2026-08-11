@@ -31,7 +31,7 @@ export const structureStatusMeta: Record<StructureStatus, StatusMeta> = {
   },
   new: {
     label: "Nova estrutura",
-    className: "border-violet-200 bg-violet-50 text-violet-800",
+    className: "border-amber-300 bg-amber-50 text-amber-900",
   },
   removed: {
     label: "Não consta no organograma",
@@ -46,7 +46,7 @@ export const saveStateMeta: Record<SaveState, StatusMeta> = {
   },
   saving: {
     label: "Salvando na planilha…",
-    className: "text-teal-700",
+    className: "text-sky-800",
   },
   saved: {
     label: "Salvo na planilha",

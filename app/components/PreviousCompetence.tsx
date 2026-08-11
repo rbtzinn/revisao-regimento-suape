@@ -20,27 +20,25 @@ export function PreviousCompetence({
     trimmedCompetence.split(/\r?\n/).length > 12;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">
-            Regimento de 2024
-          </p>
-          <h3 className="mt-1 text-sm font-bold text-slate-800">
-            Competência anterior
-          </h3>
-        </div>
+    <section className="border border-slate-300 bg-white">
+      <header className="border-b border-slate-200 bg-[#f3f6f6] px-3 py-3 sm:px-4">
+        <p className="font-utility text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+          Regimento de 2024
+        </p>
+        <h3 className="mt-0.5 text-sm font-black text-[#0b1f2a]">
+          Competência anterior
+        </h3>
         {!isNewStructure && previousName ? (
-          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-            {previousName}
-          </span>
+          <p className="mt-1 break-words text-xs leading-5 text-slate-600">
+            Função em 2024: <strong>{previousName}</strong>
+          </p>
         ) : null}
-      </div>
+      </header>
 
       {trimmedCompetence && !isNewStructure ? (
-        <div className="relative mt-4">
+        <div className="relative p-3 sm:p-4">
           <p
-            className={`whitespace-pre-wrap text-[15px] leading-7 text-slate-700 ${
+            className={`whitespace-pre-wrap [overflow-wrap:anywhere] text-[14px] leading-6 text-slate-700 sm:text-[15px] sm:leading-7 ${
               isLong && !showFullText ? "max-h-64 overflow-hidden" : ""
             }`}
           >
@@ -49,7 +47,7 @@ export function PreviousCompetence({
           {isLong && !showFullText ? (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white to-transparent"
+              className="pointer-events-none absolute inset-x-0 bottom-14 h-20 bg-gradient-to-t from-white to-transparent"
             />
           ) : null}
           {isLong ? (
@@ -57,18 +55,15 @@ export function PreviousCompetence({
               type="button"
               onClick={() => setShowFullText((value) => !value)}
               aria-expanded={showFullText}
-              className="relative mt-3 min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-teal-700 transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
+              className="relative mt-3 min-h-11 rounded-[3px] border border-[#0b6b88] bg-white px-3 text-sm font-bold text-[#0b6b88] transition hover:bg-[#e9f6f7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#21b6c7]"
             >
-              {showFullText
-                ? "Recolher competência"
-                : "Ler competência completa"}
+              {showFullText ? "Recolher texto" : "Ler texto completo"}
             </button>
           ) : null}
         </div>
       ) : (
-        <div className="mt-4 rounded-xl border border-dashed border-violet-200 bg-violet-50 p-4 text-sm leading-relaxed text-violet-800">
-          Esta estrutura não possui competência no regimento anterior. O texto
-          completo deverá ser redigido ao lado.
+        <div className="m-3 border-l-4 border-[#f5c400] bg-[#fff9d8] p-4 text-sm leading-6 text-[#5b4a00] sm:m-4">
+          Nova estrutura. Redija a competência completa no campo ao lado.
         </div>
       )}
     </section>
