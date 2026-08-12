@@ -29,7 +29,7 @@ export function DirectorateNav({
   return (
     <nav
       aria-label="Filtrar por diretoria"
-      className="w-full min-w-0 max-w-full overflow-hidden rounded-[6px] border border-[#062D46]/20 bg-[#F5F7F7] p-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0"
+      className="w-full min-w-0 max-w-full overflow-hidden rounded-[6px] border border-[#062D46]/20 bg-[#F5F7F7] p-2 lg:flex lg:max-h-[calc(100dvh-9.5rem)] lg:flex-col lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0"
     >
       <div className="mb-1.5 flex items-center justify-between border-b border-[#062D46]/15 px-1 pb-1.5 lg:mb-2 lg:pb-2">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#062D46]">
@@ -40,7 +40,7 @@ export function DirectorateNav({
         </span>
       </div>
 
-      <div className="flex w-full max-w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-px-0 pb-1 [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden lg:flex-col lg:gap-1.5 lg:overflow-visible lg:pb-0">
+      <div className="directorate-scroll flex w-full max-w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-px-0 pb-1 [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-1.5 lg:overflow-x-hidden lg:overflow-y-auto lg:overscroll-y-contain lg:pb-0 lg:pr-1 lg:[scrollbar-width:thin] lg:[touch-action:pan-y] lg:[&::-webkit-scrollbar]:block">
         <DirectorateButton
           label="Todas as diretorias"
           shortLabel="Todas"

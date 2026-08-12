@@ -113,7 +113,7 @@ export function ReviewWorkspace() {
         />
 
         <div className="grid min-w-0 gap-4 lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-5">
-          <aside className="no-print min-w-0 lg:sticky lg:top-32">
+          <aside className="no-print min-w-0 self-start lg:sticky lg:top-[8.5rem] lg:max-h-[calc(100dvh-9.5rem)]">
             <DirectorateNav
               items={directorateItems}
               selectedId={directorate}
