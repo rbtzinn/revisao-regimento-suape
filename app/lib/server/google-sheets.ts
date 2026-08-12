@@ -9,7 +9,19 @@ import {
   parseUpdateResponse,
 } from "@/app/lib/server/google-sheets-contract";
 
-const REQUEST_TIMEOUT_MS = 12_000;
+const READ_TIMEOUT_MS = 25_000;
+const WRITE_TIMEOUT_MS = 30_000;
+const READ_RETRY_DELAY_MS = 800;
+const FRESH_CACHE_MS = 60_000;
+const STALE_CACHE_MS = 15 * 60_000;
+
+type RecordsCache = {
+  value: RecordsApiResponse;
+  storedAt: number;
+};
+
+let recordsCache: RecordsCache | undefined;
+let pendingRecordsRequest: Promise<RecordsApiResponse> | undefined;
 
 export type GoogleSheetsErrorKind =
   | "configuration"
@@ -52,9 +64,13 @@ function getConfiguration() {
   return { url, token };
 }
 
-async function requestJson(url: URL, init: RequestInit): Promise<unknown> {
+async function requestJson(
+  url: URL,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<unknown> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
@@ -90,46 +106,113 @@ async function requestJson(url: URL, init: RequestInit): Promise<unknown> {
   }
 }
 
-export async function listCompetencyRecords(): Promise<RecordsApiResponse> {
-  const { url, token } = getConfiguration();
+function wait(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function canRetryRead(error: unknown) {
+  return (
+    error instanceof GoogleSheetsError &&
+    (error.kind === "timeout" || error.kind === "network")
+  );
+}
+
+async function fetchRecordsFromSheet(url: URL, token: string) {
   url.searchParams.set("token", token);
 
-  const body = await requestJson(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-  });
-  const result = parseRecordsResponse(body);
-
-  if (!result) {
-    const failure = parseFailureResponse(body);
-    if (failure) {
-      throw new GoogleSheetsError(
-        "upstream",
-        failure.code,
-        failure.currentValue,
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const body = await requestJson(
+        url,
+        {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        },
+        READ_TIMEOUT_MS,
       );
+      const result = parseRecordsResponse(body);
+
+      if (result) return result;
+
+      const failure = parseFailureResponse(body);
+      if (failure) {
+        throw new GoogleSheetsError(
+          "upstream",
+          failure.code,
+          failure.currentValue,
+        );
+      }
+      throw new GoogleSheetsError("invalid-response");
+    } catch (error) {
+      if (attempt === 0 && canRetryRead(error)) {
+        await wait(READ_RETRY_DELAY_MS);
+        continue;
+      }
+      throw error;
     }
-    throw new GoogleSheetsError("invalid-response");
   }
 
-  return result;
+  throw new GoogleSheetsError("network");
+}
+
+export async function listCompetencyRecords(): Promise<RecordsApiResponse> {
+  const now = Date.now();
+  if (recordsCache && now - recordsCache.storedAt < FRESH_CACHE_MS) {
+    return recordsCache.value;
+  }
+
+  if (pendingRecordsRequest) return pendingRecordsRequest;
+
+  const { url, token } = getConfiguration();
+  pendingRecordsRequest = fetchRecordsFromSheet(url, token);
+
+  try {
+    const result = await pendingRecordsRequest;
+    recordsCache = { value: result, storedAt: Date.now() };
+    return result;
+  } catch (error) {
+    if (recordsCache && Date.now() - recordsCache.storedAt < STALE_CACHE_MS) {
+      return recordsCache.value;
+    }
+    throw error;
+  } finally {
+    pendingRecordsRequest = undefined;
+  }
 }
 
 export async function updateCompetency(
   input: CompetencyUpdateInput,
 ): Promise<CompetencyUpdateResponse> {
   const { url, token } = getConfiguration();
-  const body = await requestJson(url, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
+  const body = await requestJson(
+    url,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({ token, ...input }),
     },
-    body: JSON.stringify({ token, ...input }),
-  });
+    WRITE_TIMEOUT_MS,
+  );
   const result = parseUpdateResponse(body);
 
-  if (result) return result;
+  if (result) {
+    if (recordsCache) {
+      recordsCache = {
+        value: {
+          ...recordsCache.value,
+          records: recordsCache.value.records.map((record) =>
+            record.id === result.record.id ? result.record : record,
+          ),
+          generatedAt: result.updatedAt,
+        },
+        storedAt: Date.now(),
+      };
+    }
+    return result;
+  }
 
   const failure = parseFailureResponse(body);
   if (failure) {

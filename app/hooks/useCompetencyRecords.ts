@@ -49,6 +49,7 @@ export function useCompetencyRecords() {
   const [loadError, setLoadError] = useState<string>();
   const recordsRef = useRef(records);
   const draftsRef = useRef(drafts);
+  const refreshInFlightRef = useRef(false);
 
   useEffect(() => {
     recordsRef.current = records;
@@ -59,6 +60,8 @@ export function useCompetencyRecords() {
   }, [drafts]);
 
   const refresh = useCallback(async () => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
     setIsSyncing(true);
     setLoadError(undefined);
 
@@ -103,6 +106,7 @@ export function useCompetencyRecords() {
           : "Não foi possível carregar os dados da planilha.",
       );
     } finally {
+      refreshInFlightRef.current = false;
       setIsLoading(false);
       setIsSyncing(false);
     }
@@ -110,11 +114,8 @@ export function useCompetencyRecords() {
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void refresh(), 0);
-    const handleFocus = () => void refresh();
-    window.addEventListener("focus", handleFocus);
     return () => {
       window.clearTimeout(initialLoad);
-      window.removeEventListener("focus", handleFocus);
     };
   }, [refresh]);
 

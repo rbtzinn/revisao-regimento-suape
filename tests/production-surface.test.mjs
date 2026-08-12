@@ -48,3 +48,19 @@ test("protects the portal without exposing integration secrets", async () => {
   await assert.rejects(access(new URL(".openai/hosting.json", projectRoot)));
   await access(new URL("public/og.png", projectRoot));
 });
+
+test("tolerates Apps Script cold starts without repeated focus requests", async () => {
+  const [sheets, hook, api] = await Promise.all([
+    source("app/lib/server/google-sheets.ts"),
+    source("app/hooks/useCompetencyRecords.ts"),
+    source("app/api/records/route.ts"),
+  ]);
+
+  assert.match(sheets, /READ_TIMEOUT_MS = 25_000/);
+  assert.match(sheets, /FRESH_CACHE_MS = 60_000/);
+  assert.match(sheets, /STALE_CACHE_MS = 15 \* 60_000/);
+  assert.match(sheets, /pendingRecordsRequest/);
+  assert.doesNotMatch(hook, /addEventListener\("focus"/);
+  assert.match(hook, /refreshInFlightRef/);
+  assert.match(api, /maxDuration = 60/);
+});

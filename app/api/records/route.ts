@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/server/google-sheets";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const JSON_HEADERS = { "Cache-Control": "no-store" };
 const MAX_REQUEST_SIZE = 100_000;
