@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import {
   DirectorateNav,
+  ExportPdfButton,
+  PrintReport,
   ProductHeader,
   ProgressSummary,
   SearchFilters,
@@ -103,7 +105,7 @@ export function ReviewWorkspace() {
         onSync={() => void data.refresh()}
       />
 
-      <main className="mx-auto w-full max-w-[1500px] space-y-4 px-3 py-3 sm:px-5 sm:py-5 lg:px-7 lg:py-6">
+      <main className="no-print mx-auto w-full max-w-[1500px] space-y-4 px-3 py-3 sm:px-5 sm:py-5 lg:px-7 lg:py-6">
         <ProgressSummary
           total={reviewable.length}
           mappedTotal={data.records.length}
@@ -134,9 +136,16 @@ export function ReviewWorkspace() {
                   {sectionTitle}
                 </h2>
               </div>
-              <p className="font-utility shrink-0 text-right text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-xs">
-                {filteredRecords.length} {filteredRecords.length === 1 ? "setor" : "setores"}
-              </p>
+              <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
+                <p className="font-utility text-right text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-xs">
+                  {filteredRecords.length} {filteredRecords.length === 1 ? "setor" : "setores"}
+                </p>
+                <ExportPdfButton
+                  resultCount={filteredRecords.length}
+                  disabled={data.isLoading || Boolean(data.loadError)}
+                  onExport={() => window.print()}
+                />
+              </div>
             </div>
 
             <SearchFilters
@@ -179,9 +188,17 @@ export function ReviewWorkspace() {
         </div>
       </main>
 
-      <footer className="border-t border-slate-300 bg-[#062d46] px-4 py-4 text-center text-[11px] leading-5 text-slate-200 sm:text-xs">
+      <footer className="no-print border-t border-slate-300 bg-[#062d46] px-4 py-4 text-center text-[11px] leading-5 text-slate-200 sm:text-xs">
         Regimento de 2024 · Organograma de 16/06/2026
       </footer>
+
+      <PrintReport
+        records={filteredRecords}
+        directorateLabel={sectionTitle}
+        filter={filter}
+        query={query}
+        generatedAt={data.lastSyncAt}
+      />
     </div>
   );
 }

@@ -100,7 +100,7 @@ export function ProductHeader({
     : "Planilha conectada";
 
   return (
-    <header className="relative z-40 sm:sticky sm:top-0">
+    <header className="no-print relative z-40 sm:sticky sm:top-0">
       <BrandStrip />
 
       <div className="border-b border-black/20 bg-[#062D46] px-4 py-1.5 text-white sm:px-6 sm:py-2.5 lg:px-8">

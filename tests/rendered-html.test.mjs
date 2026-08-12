@@ -38,6 +38,8 @@ test("server-renders the review portal", async () => {
   assert.doesNotMatch(html, /Compare o regimento/i);
   assert.match(html, /Regimento 2024 × organograma atual/i);
   assert.match(html, /Abrir planilha/i);
+  assert.match(html, /Exportar PDF/i);
+  assert.match(html, /RELATÓRIO DE COMPETÊNCIAS/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
 
