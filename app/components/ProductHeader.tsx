@@ -9,6 +9,7 @@ type ProductHeaderProps = {
   spreadsheetUrl?: string;
   isSyncing?: boolean;
   onSync?: () => void;
+  onSignOut?: () => void;
 };
 
 function ComplianceMark() {
@@ -87,6 +88,25 @@ function SheetIcon() {
   );
 }
 
+function SignOutIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+    >
+      <path d="M10 5H5v14h5" />
+      <path d="M13 8l4 4-4 4" />
+      <path d="M8 12h9" />
+    </svg>
+  );
+}
+
 export function ProductHeader({
   title = "Revisão do Regimento Interno",
   subtitle = "Regimento 2024 × organograma atual",
@@ -94,6 +114,7 @@ export function ProductHeader({
   spreadsheetUrl,
   isSyncing = false,
   onSync,
+  onSignOut,
 }: ProductHeaderProps) {
   const syncLabel = lastSyncAt
     ? `Planilha conectada. Última sincronização: ${lastSyncAt}`
@@ -159,6 +180,19 @@ export function ProductHeader({
                 <SheetIcon />
                 <span className="hidden text-xs font-black sm:inline">Planilha</span>
               </a>
+            ) : null}
+
+            {onSignOut ? (
+              <button
+                type="button"
+                onClick={onSignOut}
+                aria-label="Sair do portal"
+                title="Sair"
+                className="inline-flex size-11 items-center justify-center border border-white/25 bg-white/[0.06] text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#062D46] sm:w-auto sm:gap-2 sm:px-3"
+              >
+                <SignOutIcon />
+                <span className="hidden text-xs font-bold sm:inline">Sair</span>
+              </button>
             ) : null}
           </div>
         </div>

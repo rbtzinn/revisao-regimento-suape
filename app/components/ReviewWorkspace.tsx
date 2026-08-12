@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DirectorateNav,
   ExportPdfButton,
@@ -46,6 +47,7 @@ function formatSyncTime(value?: string) {
 }
 
 export function ReviewWorkspace() {
+  const router = useRouter();
   const data = useCompetencyRecords();
   const [directorate, setDirectorate] = useState<DirectorateName | "all">(
     "Presidência",
@@ -96,6 +98,15 @@ export function ReviewWorkspace() {
   const sectionTitle =
     directorate === "all" ? "Todas as diretorias" : directorate;
 
+  async function signOut() {
+    try {
+      await fetch("/api/auth", { method: "DELETE" });
+    } finally {
+      router.replace("/login");
+      router.refresh();
+    }
+  }
+
   return (
     <div className="min-h-screen text-[#0b1f2a]">
       <ProductHeader
@@ -103,6 +114,7 @@ export function ReviewWorkspace() {
         spreadsheetUrl={SPREADSHEET_URL}
         isSyncing={data.isSyncing}
         onSync={() => void data.refresh()}
+        onSignOut={() => void signOut()}
       />
 
       <main className="no-print mx-auto w-full max-w-[1500px] space-y-4 px-3 py-3 sm:px-5 sm:py-5 lg:px-7 lg:py-6">
