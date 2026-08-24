@@ -1,4 +1,5 @@
 export const DIRECTORATES = [
+  "Auditoria Interna",
   "Presidência",
   "Jurídica",
   "Relações Inst.",

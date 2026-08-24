@@ -29,4 +29,4 @@ npm test
 3. Mantenha o repositório privado.
 4. Configure um domínio próprio na área Domains, se desejar.
 
-O navegador nunca recebe o token do Apps Script. O portal lê as oito abas por uma rota do servidor, envia as edições ao Apps Script e mantém a competência atualizada na coluna E da respectiva aba. A exportação em PDF respeita a diretoria, o status e a busca selecionados na tela.
+O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por uma rota do servidor, envia as edições ao Apps Script e mantém a competência atualizada na coluna D da respectiva aba. A exportação em PDF respeita a diretoria, o status e a busca selecionados na tela.
