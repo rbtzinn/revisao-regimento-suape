@@ -64,3 +64,18 @@ test("tolerates Apps Script cold starts without repeated focus requests", async 
   assert.match(hook, /refreshInFlightRef/);
   assert.match(api, /maxDuration = 60/);
 });
+
+test("exports the pending survey in the format the chief expects", async () => {
+  const [workspace, report, pending] = await Promise.all([
+    source("app/components/ReviewWorkspace.tsx"),
+    source("app/components/PendingReport.tsx"),
+    source("app/lib/pending-report.ts"),
+  ]);
+
+  assert.match(workspace, /Levantamento de pendências/);
+  assert.match(workspace, /PendingReport/);
+  assert.match(report, /LEVANTAMENTO DE PENDÊNCIAS/);
+  assert.match(report, /RELAÇÃO DETALHADA DAS PENDÊNCIAS/);
+  assert.match(report, /Levantamento_Pendencias_Revisao_Regimento_SUAPE_/);
+  assert.match(pending, /compareWithPreviousSnapshot/);
+});

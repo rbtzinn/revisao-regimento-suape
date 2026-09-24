@@ -2,6 +2,11 @@ export { DirectorateNav, type DirectorateNavItem } from "./DirectorateNav";
 export { CompetenceEditor } from "./CompetenceEditor";
 export { ExportPdfButton } from "./ExportPdfButton";
 export { PreviousCompetence } from "./PreviousCompetence";
+export {
+  PendingReport,
+  pendingReportDateKey,
+  pendingReportFileName,
+} from "./PendingReport";
 export { PrintReport } from "./PrintReport";
 export { ProductHeader } from "./ProductHeader";
 export { ProgressSummary } from "./ProgressSummary";

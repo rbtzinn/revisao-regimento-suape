@@ -1,10 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   DirectorateNav,
   ExportPdfButton,
+  PendingReport,
+  pendingReportDateKey,
+  pendingReportFileName,
   PrintReport,
   ProductHeader,
   ProgressSummary,
@@ -17,6 +21,12 @@ import {
   LoadingState,
 } from "@/app/components/WorkspaceStates";
 import { useCompetencyRecords } from "@/app/hooks/useCompetencyRecords";
+import {
+  compareWithPreviousSnapshot,
+  isRecordPending,
+  saveSnapshot,
+  type PendingComparison,
+} from "@/app/lib/pending-report";
 import {
   getStructureStatus,
   isRecordCompleted,
@@ -54,12 +64,15 @@ export function ReviewWorkspace() {
   );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RecordFilter>("all");
+  const [printMode, setPrintMode] = useState<"records" | "pending">("records");
+  const [pendingComparison, setPendingComparison] = useState<PendingComparison>();
 
   const reviewable = useMemo(
     () => data.records.filter((record) => getStructureStatus(record) !== "removed"),
     [data.records],
   );
   const reviewed = reviewable.filter(isRecordCompleted).length;
+  const pendingCount = data.records.filter(isRecordPending).length;
   const newStructures = reviewable.filter(
     (record) => getStructureStatus(record) === "new",
   ).length;
@@ -97,6 +110,25 @@ export function ReviewWorkspace() {
 
   const sectionTitle =
     directorate === "all" ? "Todas as diretorias" : directorate;
+
+  function exportPendingReport() {
+    const dateKey = pendingReportDateKey(data.lastSyncAt);
+    const previousTitle = document.title;
+
+    flushSync(() => {
+      setPendingComparison(compareWithPreviousSnapshot(data.records, dateKey));
+      setPrintMode("pending");
+    });
+    // O título vira o nome sugerido do arquivo ao salvar como PDF.
+    document.title = pendingReportFileName(data.lastSyncAt);
+    try {
+      window.print();
+    } finally {
+      document.title = previousTitle;
+      saveSnapshot(data.records, dateKey);
+      setPrintMode("records");
+    }
+  }
 
   async function signOut() {
     try {
@@ -153,6 +185,13 @@ export function ReviewWorkspace() {
                   {filteredRecords.length} {filteredRecords.length === 1 ? "setor" : "setores"}
                 </p>
                 <ExportPdfButton
+                  label="Levantamento de pendências"
+                  variant="secondary"
+                  resultCount={pendingCount}
+                  disabled={data.isLoading || Boolean(data.loadError)}
+                  onExport={exportPendingReport}
+                />
+                <ExportPdfButton
                   resultCount={filteredRecords.length}
                   disabled={data.isLoading || Boolean(data.loadError)}
                   onExport={() => window.print()}
@@ -204,13 +243,21 @@ export function ReviewWorkspace() {
         Regimento de 2024 · Organograma de 16/06/2026
       </footer>
 
-      <PrintReport
-        records={filteredRecords}
-        directorateLabel={sectionTitle}
-        filter={filter}
-        query={query}
-        generatedAt={data.lastSyncAt}
-      />
+      {printMode === "pending" ? (
+        <PendingReport
+          records={data.records}
+          generatedAt={data.lastSyncAt}
+          comparison={pendingComparison}
+        />
+      ) : (
+        <PrintReport
+          records={filteredRecords}
+          directorateLabel={sectionTitle}
+          filter={filter}
+          query={query}
+          generatedAt={data.lastSyncAt}
+        />
+      )}
     </div>
   );
 }

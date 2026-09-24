@@ -120,7 +120,8 @@ textarea {
   text-transform: none;
 }
 
-.print-report {
+.print-report,
+.pending-report {
   display: none;
 }
 
@@ -324,6 +325,243 @@ textarea {
     padding-top: 3mm;
     color: #49636f;
     font-size: 7.5pt;
+    text-align: center;
+  }
+
+  .pending-report {
+    display: block;
+    page: pendencias;
+    color: #1f2d3a;
+    font-family: Aptos, "Segoe UI", Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.45;
+  }
+
+  .pending-report__page--break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .pending-report__masthead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8mm;
+    border-bottom: 1.5px solid #21b6c7;
+    padding-bottom: 2.5mm;
+    font-size: 10.5pt;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .pending-report__masthead strong {
+    color: #1f4a63;
+  }
+
+  .pending-report__masthead span {
+    color: #1aa3b0;
+  }
+
+  .pending-report__title {
+    margin: 4mm 0 0;
+    color: #1f4a63;
+    font-size: 21pt;
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  .pending-report__subtitle {
+    margin: 0.5mm 0 0;
+    color: #1aa3b0;
+    font-size: 14pt;
+    font-weight: 800;
+  }
+
+  .pending-report__caption {
+    margin: 1mm 0 5mm;
+    color: #64748b;
+    font-size: 9.5pt;
+  }
+
+  .pending-report__meta {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    margin: 6mm 0;
+    border: 1px solid #cfe0ea;
+    background: #eef6fc;
+  }
+
+  .pending-report__meta > div + div {
+    border-left: 1px solid #cfe0ea;
+  }
+
+  .pending-report__meta dt {
+    border-bottom: 1px solid #cfe0ea;
+    padding: 2.5mm 3mm;
+    color: #64748b;
+    font-size: 7pt;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .pending-report__meta dd {
+    margin: 0;
+    padding: 3.5mm 3mm 5mm;
+    color: #1f2d3a;
+    font-size: 11pt;
+    font-weight: 800;
+  }
+
+  .pending-report__text {
+    margin: 0 0 4mm;
+  }
+
+  .pending-report__highlight {
+    display: grid;
+    grid-template-columns: 50mm 1fr;
+    margin: 5mm 0 6mm;
+    border: 1px solid #1f4a63;
+    background: #eef6fc;
+    break-inside: avoid;
+  }
+
+  .pending-report__highlight-number {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1f4a63;
+    padding: 5mm 3mm 7mm;
+    color: #fff;
+    font-weight: 800;
+  }
+
+  .pending-report__highlight-number strong {
+    font-size: 20pt;
+    line-height: 1.2;
+  }
+
+  .pending-report__highlight-number span {
+    font-size: 11pt;
+  }
+
+  .pending-report__highlight p {
+    margin: 0;
+    padding: 5mm;
+  }
+
+  .pending-report__section-title {
+    margin: 0 0 3mm;
+    color: #1f4a63;
+    font-size: 13pt;
+    font-weight: 800;
+  }
+
+  .pending-report table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .pending-report__table th {
+    background: #1f4a63;
+    padding: 3mm;
+    color: #fff;
+    font-size: 8pt;
+    font-weight: 800;
+    text-align: left;
+  }
+
+  .pending-report__table td {
+    border-bottom: 1px solid #dfe8ef;
+    padding: 3mm;
+  }
+
+  .pending-report__table tbody tr:nth-child(even) td {
+    background: #f5f9fc;
+  }
+
+  .pending-report__table th:first-child,
+  .pending-report__table td:first-child {
+    width: 18mm;
+  }
+
+  .pending-report__table th:last-child,
+  .pending-report__table td:last-child {
+    width: 28mm;
+    text-align: right;
+    font-weight: 800;
+  }
+
+  .pending-report__table td:nth-child(2) {
+    font-weight: 600;
+  }
+
+  .pending-report__table tfoot td {
+    border-top: 1px solid #21b6c7;
+    border-bottom: 0;
+    background: #eef6fc;
+    font-weight: 800;
+  }
+
+  .pending-report__small {
+    margin: 5mm 0 3mm;
+    font-size: 8.5pt;
+  }
+
+  .pending-report__note,
+  .pending-report__source {
+    margin: 0;
+    color: #64748b;
+    font-size: 8pt;
+  }
+
+  .pending-report__source {
+    margin-top: 5mm;
+  }
+
+  .pending-report__group {
+    margin-bottom: 5mm;
+    break-inside: avoid;
+  }
+
+  .pending-report__group h2 {
+    margin: 0 0 2.5mm;
+    border-left: 4px solid #f5b400;
+    padding: 1mm 0 1mm 3mm;
+    color: #1f4a63;
+    font-size: 12pt;
+    font-weight: 800;
+  }
+
+  .pending-report__items th {
+    border-bottom: 1px solid #21b6c7;
+    background: #eef6fc;
+    padding: 2mm 3mm;
+    color: #64748b;
+    font-size: 7pt;
+    font-weight: 800;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .pending-report__items td {
+    border-bottom: 1px solid #dfe8ef;
+    padding: 2mm 3mm;
+  }
+
+  .pending-report__items tbody tr:nth-child(even) td {
+    background: #f5f9fc;
+  }
+
+  .pending-report__items th:first-child,
+  .pending-report__items td:first-child {
+    width: 18mm;
+  }
+
+  .pending-report__items td:first-child {
+    color: #1aa3b0;
+    font-weight: 800;
     text-align: center;
   }
 
