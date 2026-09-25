@@ -177,8 +177,8 @@ export function SectorCard({
                 {hasReviewedColumn ? (
                   <CompetenceEditor
                     eyebrow="Após a revisão"
-                    title="Competência revisada"
-                    placeholder="Competência definida após a revisão"
+                    title="Competência revisada e observações"
+                    placeholder="Competência revisada ou observações (ex.: atribuição repetida em outra função ou setor)"
                     saveLabel="Salvar revisão"
                     accentClassName="border-t-[#f5c400]"
                     currentName={currentName}

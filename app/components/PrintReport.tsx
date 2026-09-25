@@ -115,7 +115,7 @@ function ReportRecord({
 
       {status !== "removed" && record.reviewedCompetence !== null ? (
         <div className="print-record__competence print-record__competence--reviewed">
-          <h3>Competência revisada</h3>
+          <h3>Competência revisada e observações</h3>
           <p>{record.reviewedCompetence.trim() || "Não preenchida"}</p>
         </div>
       ) : null}
