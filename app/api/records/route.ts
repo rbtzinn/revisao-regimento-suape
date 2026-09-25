@@ -115,9 +115,10 @@ async function readUpdateInput(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const fresh = new URL(request.url).searchParams.get("fresh") === "1";
   try {
-    const result = await listCompetencyRecords();
+    const result = await listCompetencyRecords({ fresh });
     return Response.json(result, { headers: JSON_HEADERS });
   } catch (error) {
     return sheetsErrorResponse(error);

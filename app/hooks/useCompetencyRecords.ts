@@ -69,14 +69,14 @@ export function useCompetencyRecords() {
     draftsRef.current = drafts;
   }, [drafts]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ fresh = false } = {}) => {
     if (refreshInFlightRef.current) return;
     refreshInFlightRef.current = true;
     setIsSyncing(true);
     setLoadError(undefined);
 
     try {
-      const response = await fetch("/api/records", {
+      const response = await fetch(fresh ? "/api/records?fresh=1" : "/api/records", {
         cache: "no-store",
         headers: { Accept: "application/json" },
       });

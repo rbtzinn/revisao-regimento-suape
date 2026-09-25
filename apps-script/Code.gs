@@ -38,10 +38,23 @@ const FIELD_COLUMNS = {
 
 const REVIEWED_HEADER = "COMPETÊNCIA REVISADA (APÓS REVISÃO)";
 
+// Cópia da leitura completa, para não abrir as 9 abas a cada acesso.
+// É apagada a cada gravação pelo portal e a cada edição feita na planilha.
+const CACHE_KEY = "records-v1";
+const CACHE_SECONDS = 600;
+const CACHE_CHUNK_SIZE = 90000;
+
 function doGet(e) {
   try {
     if (!isAuthorized((e && e.parameter && e.parameter.token) || "")) {
       return failure("UNAUTHORIZED", "Token inválido.");
+    }
+
+    const cached = readCache();
+    if (cached) {
+      return ContentService.createTextOutput(cached).setMimeType(
+        ContentService.MimeType.JSON,
+      );
     }
 
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -67,11 +80,15 @@ function doGet(e) {
       });
     });
 
-    return json({
+    const body = JSON.stringify({
       ok: true,
       records: records,
       generatedAt: new Date().toISOString(),
     });
+    writeCache(body);
+    return ContentService.createTextOutput(body).setMimeType(
+      ContentService.MimeType.JSON,
+    );
   } catch (error) {
     return failure("INTERNAL", String(error && error.message ? error.message : error));
   }
@@ -128,10 +145,11 @@ function doPost(e) {
       });
     }
 
-    cell.setValue(input.competence);
-    SpreadsheetApp.flush();
-
     const row = sheet.getRange(rowNumber, 1, 1, COLUMN_COUNT).getDisplayValues()[0];
+    cell.setValue(input.competence);
+    row[column - 1] = input.competence;
+    clearCache();
+
     return json({
       ok: true,
       record: toRecord(sheet, input.directorate, rowNumber, row),
@@ -140,6 +158,48 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Gatilho simples: qualquer edição feita direto na planilha limpa a cópia. */
+function onEdit() {
+  clearCache();
+}
+
+function readCache() {
+  const cache = CacheService.getScriptCache();
+  const count = Number(cache.get(CACHE_KEY + ":count"));
+  if (!count) return null;
+
+  const keys = [];
+  for (let i = 0; i < count; i += 1) keys.push(CACHE_KEY + ":" + i);
+  const parts = cache.getAll(keys);
+
+  let body = "";
+  for (let i = 0; i < count; i += 1) {
+    const part = parts[CACHE_KEY + ":" + i];
+    if (part === undefined) return null;
+    body += part;
+  }
+  return body;
+}
+
+function writeCache(body) {
+  try {
+    const values = {};
+    let count = 0;
+    for (let start = 0; start < body.length; start += CACHE_CHUNK_SIZE) {
+      values[CACHE_KEY + ":" + count] = body.slice(start, start + CACHE_CHUNK_SIZE);
+      count += 1;
+    }
+    values[CACHE_KEY + ":count"] = String(count);
+    CacheService.getScriptCache().putAll(values, CACHE_SECONDS);
+  } catch (error) {
+    // Sem cache a leitura só fica mais lenta.
+  }
+}
+
+function clearCache() {
+  CacheService.getScriptCache().remove(CACHE_KEY + ":count");
 }
 
 /**
@@ -178,6 +238,8 @@ function prepararColunaCompetenciaRevisada() {
         sheet.getRange(row, 1, rows, 5).merge();
       });
   });
+
+  clearCache();
 }
 
 function toRecord(sheet, directorate, rowNumber, row) {

@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import type {
   CompetencyUpdateInput,
   CompetencyUpdateResponse,
@@ -156,34 +157,62 @@ async function fetchRecordsFromSheet(url: URL, token: string) {
   throw new GoogleSheetsError("network");
 }
 
-export async function listCompetencyRecords(): Promise<RecordsApiResponse> {
-  const now = Date.now();
-  if (recordsCache && now - recordsCache.storedAt < FRESH_CACHE_MS) {
-    return recordsCache.value;
-  }
-
+function refreshRecords() {
   if (pendingRecordsRequest) return pendingRecordsRequest;
 
   const { url, token } = getConfiguration();
-  pendingRecordsRequest = fetchRecordsFromSheet(url, token);
+  pendingRecordsRequest = fetchRecordsFromSheet(url, token)
+    .then((result) => {
+      recordsCache = { value: result, storedAt: Date.now() };
+      return result;
+    })
+    .finally(() => {
+      pendingRecordsRequest = undefined;
+    });
+
+  return pendingRecordsRequest;
+}
+
+type ListOptions = {
+  /** Ignora a cópia antiga e espera a planilha (botão de sincronizar). */
+  fresh?: boolean;
+};
+
+export async function listCompetencyRecords(
+  { fresh = false }: ListOptions = {},
+): Promise<RecordsApiResponse> {
+  const now = Date.now();
+  const age = recordsCache ? now - recordsCache.storedAt : Infinity;
+
+  if (recordsCache && age < FRESH_CACHE_MS) {
+    return recordsCache.value;
+  }
+
+  // Responde na hora com a última leitura e atualiza em segundo plano,
+  // para ninguém esperar o Apps Script ao abrir o portal.
+  if (!fresh && recordsCache && age < STALE_CACHE_MS) {
+    const stale = recordsCache.value;
+    after(() => refreshRecords().catch(() => undefined));
+    return stale;
+  }
 
   try {
-    const result = await pendingRecordsRequest;
-    recordsCache = { value: result, storedAt: Date.now() };
-    return result;
+    return await refreshRecords();
   } catch (error) {
     if (recordsCache && Date.now() - recordsCache.storedAt < STALE_CACHE_MS) {
       return recordsCache.value;
     }
     throw error;
-  } finally {
-    pendingRecordsRequest = undefined;
   }
 }
 
-async function supportsReviewedCompetence() {
-  const { records } = await listCompetencyRecords();
-  return records.some((record) => record.reviewedCompetence !== null);
+function supportsReviewedCompetence() {
+  // Sem cópia em memória, confia no navegador: ele só mostra o campo da
+  // coluna E quando a planilha já a enviou.
+  if (!recordsCache) return true;
+  return recordsCache.value.records.some(
+    (record) => record.reviewedCompetence !== null,
+  );
 }
 
 export async function updateCompetency(
@@ -194,7 +223,7 @@ export async function updateCompetency(
   // Um Apps Script antigo ignora `field` e gravaria o texto na coluna D.
   if (
     input.field === "reviewedCompetence" &&
-    !(await supportsReviewedCompetence())
+    !supportsReviewedCompetence()
   ) {
     throw new GoogleSheetsError("unsupported-field");
   }

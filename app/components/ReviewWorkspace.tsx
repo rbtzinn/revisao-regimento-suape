@@ -164,7 +164,7 @@ export function ReviewWorkspace() {
         lastSyncAt={formatSyncTime(data.lastSyncAt)}
         spreadsheetUrl={SPREADSHEET_URL}
         isSyncing={data.isSyncing}
-        onSync={() => void data.refresh()}
+        onSync={() => void data.refresh({ fresh: true })}
         onSignOut={() => void signOut()}
       />
 
@@ -232,7 +232,7 @@ export function ReviewWorkspace() {
 
             {data.isLoading ? <LoadingState /> : null}
             {!data.isLoading && data.loadError && data.records.length === 0 ? (
-              <ErrorState message={data.loadError} onRetry={() => void data.refresh()} />
+              <ErrorState message={data.loadError} onRetry={() => void data.refresh({ fresh: true })} />
             ) : null}
             {!data.isLoading && !data.loadError && filteredRecords.length === 0 ? (
               <EmptyState />
