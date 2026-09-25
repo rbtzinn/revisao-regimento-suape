@@ -38,6 +38,7 @@ export class GoogleSheetsError extends Error {
     readonly kind: GoogleSheetsErrorKind,
     readonly upstreamCode?: string,
     readonly currentValue?: string,
+    readonly detail?: string,
   ) {
     super(kind);
     this.name = "GoogleSheetsError";
@@ -73,6 +74,8 @@ async function requestJson(
 ): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+  const elapsed = () => `${Date.now() - startedAt}ms`;
 
   try {
     const response = await fetch(url, {
@@ -86,7 +89,18 @@ async function requestJson(
     try {
       body = JSON.parse(text);
     } catch {
-      throw new GoogleSheetsError("invalid-response");
+      // O Google devolve uma página HTML quando o script falha ou está sem
+      // permissão; o começo dela aparece nos logs da Vercel.
+      throw new GoogleSheetsError(
+        "invalid-response",
+        undefined,
+        undefined,
+        `HTTP ${response.status} em ${elapsed()}: ${text
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 200)}`,
+      );
     }
 
     if (!response.ok) {
@@ -95,14 +109,22 @@ async function requestJson(
         "upstream",
         failure?.code,
         failure?.currentValue,
+        `HTTP ${response.status} em ${elapsed()}: ${failure?.error ?? ""}`,
       );
     }
 
     return body;
   } catch (error) {
     if (error instanceof GoogleSheetsError) throw error;
-    if (controller.signal.aborted) throw new GoogleSheetsError("timeout");
-    throw new GoogleSheetsError("network");
+    if (controller.signal.aborted) {
+      throw new GoogleSheetsError("timeout", undefined, undefined, `sem resposta em ${elapsed()}`);
+    }
+    throw new GoogleSheetsError(
+      "network",
+      undefined,
+      undefined,
+      `${error instanceof Error ? error.message : String(error)} em ${elapsed()}`,
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -142,9 +164,15 @@ async function fetchRecordsFromSheet(url: URL, token: string) {
           "upstream",
           failure.code,
           failure.currentValue,
+          failure.error,
         );
       }
-      throw new GoogleSheetsError("invalid-response");
+      throw new GoogleSheetsError(
+        "invalid-response",
+        undefined,
+        undefined,
+        "JSON fora do formato esperado",
+      );
     } catch (error) {
       if (attempt === 0 && canRetryRead(error)) {
         await wait(READ_RETRY_DELAY_MS);

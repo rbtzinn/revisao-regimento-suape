@@ -32,6 +32,12 @@ function sheetsErrorResponse(error: unknown) {
     return errorResponse("Não foi possível concluir a operação.", 500);
   }
 
+  console.error(
+    `[planilha] ${error.kind}${error.upstreamCode ? ` ${error.upstreamCode}` : ""}${
+      error.detail ? ` · ${error.detail}` : ""
+    }`,
+  );
+
   switch (error.kind) {
     case "configuration":
       return errorResponse(
@@ -66,7 +72,9 @@ function sheetsErrorResponse(error: unknown) {
       );
     default:
       return errorResponse(
-        "A planilha recusou a operação. Confira os dados e tente novamente.",
+        `A planilha recusou a operação${
+          error.upstreamCode ? ` (${error.upstreamCode})` : ""
+        }. Confira os dados e tente novamente.`,
         502,
         { code: error.upstreamCode },
       );

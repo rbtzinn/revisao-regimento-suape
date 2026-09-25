@@ -42,7 +42,9 @@ const REVIEWED_HEADER = "COMPETÊNCIA REVISADA (APÓS REVISÃO)";
 // É apagada a cada gravação pelo portal e a cada edição feita na planilha.
 const CACHE_KEY = "records-v1";
 const CACHE_SECONDS = 600;
-const CACHE_CHUNK_SIZE = 90000;
+// O CacheService aceita até 100 KB por item; letras acentuadas ocupam mais
+// de um byte, então cada pedaço fica bem abaixo do limite.
+const CACHE_CHUNK_SIZE = 30000;
 
 function doGet(e) {
   try {
