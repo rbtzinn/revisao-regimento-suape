@@ -1,6 +1,7 @@
 import {
   type ApiErrorResponse,
   type CompetencyUpdateInput,
+  isCompetencyField,
   isDirectorateName,
 } from "@/app/lib/types";
 import {
@@ -53,6 +54,11 @@ function sheetsErrorResponse(error: unknown) {
         409,
         { code: error.upstreamCode, currentValue: error.currentValue },
       );
+    case "unsupported-field":
+      return errorResponse(
+        "A planilha ainda não aceita a competência revisada. Atualize o Apps Script.",
+        503,
+      );
     case "invalid-response":
       return errorResponse(
         "A planilha respondeu em um formato inesperado.",
@@ -73,7 +79,10 @@ function parseUpdateInput(value: unknown): CompetencyUpdateInput | null {
   }
 
   const input = value as Record<string, unknown>;
+  // Clientes antigos não enviam `field` e sempre editam a coluna D.
+  const field = input.field ?? "newCompetence";
   if (
+    !isCompetencyField(field) ||
     !isDirectorateName(input.directorate) ||
     !Number.isInteger(input.rowNumber) ||
     Number(input.rowNumber) < 7 ||
@@ -86,6 +95,7 @@ function parseUpdateInput(value: unknown): CompetencyUpdateInput | null {
   return {
     directorate: input.directorate,
     rowNumber: Number(input.rowNumber),
+    field,
     competence: input.competence,
     expectedCompetence: input.expectedCompetence,
   };

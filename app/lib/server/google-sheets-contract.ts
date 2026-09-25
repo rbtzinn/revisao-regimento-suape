@@ -22,10 +22,10 @@ function isInteger(value: unknown, minimum: number) {
   return Number.isInteger(value) && Number(value) >= minimum;
 }
 
-function isRecord(value: unknown): value is CompetencyRecord {
-  if (!isObject(value)) return false;
+function parseRecord(value: unknown): CompetencyRecord | null {
+  if (!isObject(value)) return null;
 
-  return (
+  const isValid =
     typeof value.id === "string" &&
     value.id.length > 0 &&
     isDirectorateName(value.directorate) &&
@@ -34,8 +34,28 @@ function isRecord(value: unknown): value is CompetencyRecord {
     typeof value.previousName === "string" &&
     typeof value.currentName === "string" &&
     typeof value.previousCompetence === "string" &&
-    typeof value.newCompetence === "string"
-  );
+    typeof value.newCompetence === "string" &&
+    (value.reviewedCompetence === undefined ||
+      value.reviewedCompetence === null ||
+      typeof value.reviewedCompetence === "string");
+  if (!isValid) return null;
+
+  // Versões antigas do Apps Script não enviam a coluna E.
+  const record = value as unknown as CompetencyRecord;
+  return {
+    id: record.id,
+    directorate: record.directorate,
+    sheetId: record.sheetId,
+    rowNumber: record.rowNumber,
+    previousName: record.previousName,
+    currentName: record.currentName,
+    previousCompetence: record.previousCompetence,
+    newCompetence: record.newCompetence,
+    reviewedCompetence:
+      typeof value.reviewedCompetence === "string"
+        ? value.reviewedCompetence
+        : null,
+  };
 }
 
 export function parseRecordsResponse(value: unknown): RecordsApiResponse | null {
@@ -43,15 +63,17 @@ export function parseRecordsResponse(value: unknown): RecordsApiResponse | null 
     !isObject(value) ||
     value.ok !== true ||
     !Array.isArray(value.records) ||
-    !value.records.every(isRecord) ||
     typeof value.generatedAt !== "string"
   ) {
     return null;
   }
 
+  const records = value.records.map(parseRecord);
+  if (records.some((record) => record === null)) return null;
+
   return {
     ok: true,
-    records: value.records,
+    records: records as CompetencyRecord[],
     generatedAt: value.generatedAt,
   };
 }
@@ -59,10 +81,11 @@ export function parseRecordsResponse(value: unknown): RecordsApiResponse | null 
 export function parseUpdateResponse(
   value: unknown,
 ): CompetencyUpdateResponse | null {
+  const record = isObject(value) ? parseRecord(value.record) : null;
   if (
     !isObject(value) ||
     value.ok !== true ||
-    !isRecord(value.record) ||
+    !record ||
     typeof value.updatedAt !== "string"
   ) {
     return null;
@@ -70,7 +93,7 @@ export function parseUpdateResponse(
 
   return {
     ok: true,
-    record: value.record,
+    record,
     updatedAt: value.updatedAt,
   };
 }

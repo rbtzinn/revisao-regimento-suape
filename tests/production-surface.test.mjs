@@ -79,3 +79,20 @@ test("exports the pending survey in the format the chief expects", async () => {
   assert.match(report, /Levantamento_Pendencias_Revisao_Regimento_SUAPE_/);
   assert.match(pending, /compareWithPreviousSnapshot/);
 });
+
+test("keeps a reviewed competence column next to the new competence", async () => {
+  const [types, contract, card, sheets, appsScript] = await Promise.all([
+    source("app/lib/types.ts"),
+    source("app/lib/server/google-sheets-contract.ts"),
+    source("app/components/SectorCard.tsx"),
+    source("app/lib/server/google-sheets.ts"),
+    source("apps-script/Code.gs"),
+  ]);
+
+  assert.match(types, /reviewedCompetence: string \| null/);
+  assert.match(contract, /Versões antigas do Apps Script não enviam a coluna E/);
+  assert.match(card, /Competência revisada/);
+  assert.match(sheets, /unsupported-field/);
+  assert.match(appsScript, /reviewedCompetence: 5/);
+  assert.match(appsScript, /function prepararColunaCompetenciaRevisada/);
+});

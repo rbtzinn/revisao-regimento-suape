@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import type { CompetencyRecord } from "@/app/lib/types";
+import type { CompetencyField, CompetencyRecord } from "@/app/lib/types";
 import {
   getStructureStatus,
   isRecordCompleted,
@@ -13,14 +13,18 @@ import { PreviousCompetence } from "@/app/components/PreviousCompetence";
 import { RemovedStructureNotice } from "@/app/components/RemovedStructureNotice";
 import { StatusBadge } from "@/app/components/StatusBadge";
 
+export type FieldEditorState = {
+  draft: string;
+  saveState: SaveState;
+  feedbackMessage?: string;
+};
+
 type SectorCardProps = {
   record: CompetencyRecord;
-  draft: string;
-  onDraftChange: (value: string) => void;
-  onSave: () => void | Promise<void>;
-  onKeepPrevious?: () => void;
-  saveState?: SaveState;
-  feedbackMessage?: string;
+  editors: Record<CompetencyField, FieldEditorState>;
+  onDraftChange: (field: CompetencyField, value: string) => void;
+  onSave: (field: CompetencyField) => void | Promise<void>;
+  onCopy?: (field: CompetencyField, message: string) => void;
   defaultExpanded?: boolean;
   disabled?: boolean;
 };
@@ -34,12 +38,10 @@ const stripeClasses: Record<StructureStatus, string> = {
 
 export function SectorCard({
   record,
-  draft,
+  editors,
   onDraftChange,
   onSave,
-  onKeepPrevious,
-  saveState = "idle",
-  feedbackMessage,
+  onCopy,
   defaultExpanded = false,
   disabled = false,
 }: SectorCardProps) {
@@ -52,6 +54,7 @@ export function SectorCard({
   const currentName = record.currentName.trim() || "Estrutura sem nome";
   const previousName = record.previousName.trim();
   const displayName = isRemoved && previousName ? previousName : currentName;
+  const hasReviewedColumn = record.reviewedCompetence !== null;
 
   return (
     <article
@@ -127,7 +130,13 @@ export function SectorCard({
           id={regionId}
           className="border-t border-slate-300 bg-[#eaf0f1] p-2.5 sm:p-4"
         >
-          <div className="grid min-w-0 gap-2.5 xl:grid-cols-2 [&>section]:min-w-0">
+          <div
+            className={`grid min-w-0 gap-2.5 [&>section]:min-w-0 ${
+              hasReviewedColumn && !isRemoved
+                ? "lg:grid-cols-2 2xl:grid-cols-3"
+                : "xl:grid-cols-2"
+            }`}
+          >
             <PreviousCompetence
               previousName={previousName}
               competence={record.previousCompetence}
@@ -140,19 +149,61 @@ export function SectorCard({
                 currentName={currentName}
               />
             ) : (
-              <CompetenceEditor
-                currentName={currentName}
-                previousCompetence={record.previousCompetence}
-                savedCompetence={record.newCompetence}
-                draft={draft}
-                isNewStructure={isNew}
-                onDraftChange={onDraftChange}
-                onSave={onSave}
-                onKeepPrevious={onKeepPrevious}
-                saveState={saveState}
-                feedbackMessage={feedbackMessage}
-                disabled={disabled}
-              />
+              <>
+                <CompetenceEditor
+                  title="Competência no novo regimento"
+                  placeholder={
+                    isNew
+                      ? "Competência da nova estrutura"
+                      : "Competência do novo regimento"
+                  }
+                  saveLabel="Salvar competência"
+                  currentName={currentName}
+                  savedCompetence={record.newCompetence}
+                  draft={editors.newCompetence.draft}
+                  copySource={
+                    isNew
+                      ? undefined
+                      : { label: "Usar texto de 2024", text: record.previousCompetence }
+                  }
+                  onDraftChange={(value) => onDraftChange("newCompetence", value)}
+                  onSave={() => onSave("newCompetence")}
+                  onCopy={() => onCopy?.("newCompetence", "Texto de 2024 copiado.")}
+                  saveState={editors.newCompetence.saveState}
+                  feedbackMessage={editors.newCompetence.feedbackMessage}
+                  disabled={disabled}
+                />
+
+                {hasReviewedColumn ? (
+                  <CompetenceEditor
+                    eyebrow="Após a revisão"
+                    title="Competência revisada"
+                    placeholder="Competência definida após a revisão"
+                    saveLabel="Salvar revisão"
+                    accentClassName="border-t-[#f5c400]"
+                    currentName={currentName}
+                    savedCompetence={record.reviewedCompetence ?? ""}
+                    draft={editors.reviewedCompetence.draft}
+                    copySource={{
+                      label: "Usar texto do novo regimento",
+                      text: record.newCompetence,
+                    }}
+                    onDraftChange={(value) =>
+                      onDraftChange("reviewedCompetence", value)
+                    }
+                    onSave={() => onSave("reviewedCompetence")}
+                    onCopy={() =>
+                      onCopy?.(
+                        "reviewedCompetence",
+                        "Texto do novo regimento copiado.",
+                      )
+                    }
+                    saveState={editors.reviewedCompetence.saveState}
+                    feedbackMessage={editors.reviewedCompetence.feedbackMessage}
+                    disabled={disabled}
+                  />
+                ) : null}
+              </>
             )}
           </div>
         </div>

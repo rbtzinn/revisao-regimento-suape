@@ -20,7 +20,8 @@ import {
   ErrorState,
   LoadingState,
 } from "@/app/components/WorkspaceStates";
-import { useCompetencyRecords } from "@/app/hooks/useCompetencyRecords";
+import type { FieldEditorState } from "@/app/components/SectorCard";
+import { draftKey, useCompetencyRecords } from "@/app/hooks/useCompetencyRecords";
 import {
   compareWithPreviousSnapshot,
   isRecordPending,
@@ -33,7 +34,12 @@ import {
   matchesRecordFilter,
   type RecordFilter,
 } from "@/app/lib/status";
-import { DIRECTORATES, type DirectorateName } from "@/app/lib/types";
+import {
+  DIRECTORATES,
+  type CompetencyField,
+  type CompetencyRecord,
+  type DirectorateName,
+} from "@/app/lib/types";
 
 const SPREADSHEET_URL =
   "https://docs.google.com/spreadsheets/d/1SkfI6e-l68dvD43PC229rBtV3WEKT2Ikm6wDzo1iEpQ/edit";
@@ -103,6 +109,7 @@ export function ReviewWorkspace() {
           record.currentName,
           record.previousCompetence,
           record.newCompetence,
+          record.reviewedCompetence ?? "",
         ].join(" "),
       ).includes(normalizedQuery);
     });
@@ -110,6 +117,18 @@ export function ReviewWorkspace() {
 
   const sectionTitle =
     directorate === "all" ? "Todas as diretorias" : directorate;
+
+  function editorState(
+    record: CompetencyRecord,
+    field: CompetencyField,
+  ): FieldEditorState {
+    const key = draftKey(record.id, field);
+    return {
+      draft: data.drafts[key] ?? record[field] ?? "",
+      saveState: data.saveStates[key] ?? "idle",
+      feedbackMessage: data.feedback[key],
+    };
+  }
 
   function exportPendingReport() {
     const dateKey = pendingReportDateKey(data.lastSyncAt);
@@ -225,12 +244,17 @@ export function ReviewWorkspace() {
                   <SectorCard
                     key={record.id}
                     record={record}
-                    draft={data.drafts[record.id] ?? record.newCompetence}
-                    onDraftChange={(value) => data.updateDraft(record.id, value)}
-                    onKeepPrevious={() => data.markPreviousCopied(record.id)}
-                    onSave={() => data.saveRecord(record.id)}
-                    saveState={data.saveStates[record.id] ?? "idle"}
-                    feedbackMessage={data.feedback[record.id]}
+                    editors={{
+                      newCompetence: editorState(record, "newCompetence"),
+                      reviewedCompetence: editorState(record, "reviewedCompetence"),
+                    }}
+                    onDraftChange={(field, value) =>
+                      data.updateDraft(record.id, field, value)
+                    }
+                    onCopy={(field, message) =>
+                      data.markTextCopied(record.id, field, message)
+                    }
+                    onSave={(field) => data.saveRecord(record.id, field)}
                   />
                 ))}
               </div>

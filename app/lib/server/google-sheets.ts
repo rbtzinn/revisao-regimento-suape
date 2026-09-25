@@ -29,7 +29,8 @@ export type GoogleSheetsErrorKind =
   | "network"
   | "upstream"
   | "invalid-response"
-  | "conflict";
+  | "conflict"
+  | "unsupported-field";
 
 export class GoogleSheetsError extends Error {
   constructor(
@@ -180,10 +181,23 @@ export async function listCompetencyRecords(): Promise<RecordsApiResponse> {
   }
 }
 
+async function supportsReviewedCompetence() {
+  const { records } = await listCompetencyRecords();
+  return records.some((record) => record.reviewedCompetence !== null);
+}
+
 export async function updateCompetency(
   input: CompetencyUpdateInput,
 ): Promise<CompetencyUpdateResponse> {
   const { url, token } = getConfiguration();
+
+  // Um Apps Script antigo ignora `field` e gravaria o texto na coluna D.
+  if (
+    input.field === "reviewedCompetence" &&
+    !(await supportsReviewedCompetence())
+  ) {
+    throw new GoogleSheetsError("unsupported-field");
+  }
   const body = await requestJson(
     url,
     {

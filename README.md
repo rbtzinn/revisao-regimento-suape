@@ -29,4 +29,15 @@ npm test
 3. Mantenha o repositório privado.
 4. Configure um domínio próprio na área Domains, se desejar.
 
-O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por uma rota do servidor, envia as edições ao Apps Script e mantém a competência atualizada na coluna D da respectiva aba. A exportação em PDF respeita a diretoria, o status e a busca selecionados na tela.
+O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por uma rota do servidor, envia as edições ao Apps Script e mantém a competência atualizada na coluna D da respectiva aba e a competência revisada (após a revisão das atribuições) na coluna E. A exportação em PDF respeita a diretoria, o status e a busca selecionados na tela.
+
+## Apps Script
+
+O código do Apps Script vinculado à planilha fica em `apps-script/Code.gs`. Para atualizá-lo:
+
+1. Na planilha, abra **Extensões → Apps Script** e substitua todo o conteúdo de `Código.gs` pelo arquivo `apps-script/Code.gs`.
+2. Em **Configurações do projeto → Propriedades do script**, crie `PORTAL_TOKEN` com o mesmo valor de `GOOGLE_SHEETS_WEBAPP_TOKEN` (ou cole o token em `TOKEN_FIXO`).
+3. Selecione a função `prepararColunaCompetenciaRevisada` e clique em **Executar** uma vez: ela cria o cabeçalho e a formatação da coluna E em todas as abas.
+4. Em **Implantar → Gerenciar implantações**, edite a implantação atual e escolha **Nova versão**. Assim a URL do Web App continua a mesma e nada muda na Vercel.
+
+Enquanto o Apps Script publicado não enviar a coluna E, o portal continua funcionando normalmente e apenas não mostra o campo de competência revisada.

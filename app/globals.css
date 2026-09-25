@@ -308,6 +308,11 @@ textarea {
     background: #fffdf2;
   }
 
+  .print-record__competence--reviewed {
+    border-left: 4px solid #21b6c7;
+    background: #f2fbfc;
+  }
+
   .print-record__competence h3,
   .print-record__competence p {
     margin: 0;

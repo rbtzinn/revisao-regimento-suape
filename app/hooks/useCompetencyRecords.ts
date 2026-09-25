@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ApiErrorResponse,
+  CompetencyField,
   CompetencyRecord,
   CompetencyUpdateResponse,
   RecordsApiResponse,
@@ -11,6 +12,15 @@ import type { SaveState } from "@/app/lib/status";
 
 type StringMap = Record<string, string>;
 type SaveStateMap = Record<string, SaveState>;
+
+/** Rascunhos, estados e mensagens são separados por registro e por coluna. */
+export function draftKey(recordId: string, field: CompetencyField) {
+  return `${recordId}::${field}`;
+}
+
+function savedValue(record: CompetencyRecord, field: CompetencyField) {
+  return record[field] ?? "";
+}
 
 function isSuccessfulList(value: unknown): value is RecordsApiResponse {
   return Boolean(
@@ -81,20 +91,24 @@ export function useCompetencyRecords() {
       const previousById = new Map(
         recordsRef.current.map((record) => [record.id, record]),
       );
+      const fields: CompetencyField[] = ["newCompetence", "reviewedCompetence"];
       setDrafts((currentDrafts) =>
         Object.fromEntries(
-          payload.records.map((record) => {
-            const previous = previousById.get(record.id);
-            const currentDraft = currentDrafts[record.id];
-            const hasLocalChange =
-              previous !== undefined &&
-              currentDraft !== undefined &&
-              currentDraft !== previous.newCompetence;
-            return [
-              record.id,
-              hasLocalChange ? currentDraft : record.newCompetence,
-            ];
-          }),
+          payload.records.flatMap((record) =>
+            fields.map((field) => {
+              const key = draftKey(record.id, field);
+              const previous = previousById.get(record.id);
+              const currentDraft = currentDrafts[key];
+              const hasLocalChange =
+                previous !== undefined &&
+                currentDraft !== undefined &&
+                currentDraft !== savedValue(previous, field);
+              return [
+                key,
+                hasLocalChange ? currentDraft : savedValue(record, field),
+              ];
+            }),
+          ),
         ),
       );
       setRecords(payload.records);
@@ -119,80 +133,93 @@ export function useCompetencyRecords() {
     };
   }, [refresh]);
 
-  const updateDraft = useCallback((recordId: string, value: string) => {
-    setDrafts((current) => ({ ...current, [recordId]: value }));
-    setSaveStates((current) => ({ ...current, [recordId]: "idle" }));
-    setFeedback((current) => {
-      const next = { ...current };
-      delete next[recordId];
-      return next;
-    });
-  }, []);
-
-  const markPreviousCopied = useCallback((recordId: string) => {
-    setFeedback((current) => ({
-      ...current,
-      [recordId]: "Texto de 2024 copiado.",
-    }));
-  }, []);
-
-  const saveRecord = useCallback(async (recordId: string) => {
-    const record = recordsRef.current.find((item) => item.id === recordId);
-    if (!record) return;
-
-    const draft = draftsRef.current[recordId] ?? record.newCompetence;
-    if (draft === record.newCompetence) return;
-
-    setSaveStates((current) => ({ ...current, [recordId]: "saving" }));
-    setFeedback((current) => ({ ...current, [recordId]: "Salvando na planilha…" }));
-
-    try {
-      const response = await fetch("/api/records", {
-        method: "PUT",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          directorate: record.directorate,
-          rowNumber: record.rowNumber,
-          competence: draft,
-          expectedCompetence: record.newCompetence,
-        }),
+  const updateDraft = useCallback(
+    (recordId: string, field: CompetencyField, value: string) => {
+      const key = draftKey(recordId, field);
+      setDrafts((current) => ({ ...current, [key]: value }));
+      setSaveStates((current) => ({ ...current, [key]: "idle" }));
+      setFeedback((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
       });
-      const payload: unknown = await response.json();
+    },
+    [],
+  );
 
-      if (!response.ok || !isSuccessfulUpdate(payload)) {
-        const state: SaveState = response.status === 409 ? "conflict" : "error";
-        setSaveStates((current) => ({ ...current, [recordId]: state }));
+  const markTextCopied = useCallback(
+    (recordId: string, field: CompetencyField, message: string) => {
+      setFeedback((current) => ({
+        ...current,
+        [draftKey(recordId, field)]: message,
+      }));
+    },
+    [],
+  );
+
+  const saveRecord = useCallback(
+    async (recordId: string, field: CompetencyField) => {
+      const record = recordsRef.current.find((item) => item.id === recordId);
+      if (!record) return;
+
+      const key = draftKey(recordId, field);
+      const saved = savedValue(record, field);
+      const draft = draftsRef.current[key] ?? saved;
+      if (draft === saved) return;
+
+      setSaveStates((current) => ({ ...current, [key]: "saving" }));
+      setFeedback((current) => ({ ...current, [key]: "Salvando na planilha…" }));
+
+      try {
+        const response = await fetch("/api/records", {
+          method: "PUT",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            directorate: record.directorate,
+            rowNumber: record.rowNumber,
+            field,
+            competence: draft,
+            expectedCompetence: saved,
+          }),
+        });
+        const payload: unknown = await response.json();
+
+        if (!response.ok || !isSuccessfulUpdate(payload)) {
+          const state: SaveState = response.status === 409 ? "conflict" : "error";
+          setSaveStates((current) => ({ ...current, [key]: state }));
+          setFeedback((current) => ({
+            ...current,
+            [key]: readError(payload, "Não foi possível salvar a alteração."),
+          }));
+          return;
+        }
+
+        setRecords((current) =>
+          current.map((item) => (item.id === recordId ? payload.record : item)),
+        );
+        setDrafts((current) => ({
+          ...current,
+          [key]: savedValue(payload.record, field),
+        }));
+        setSaveStates((current) => ({ ...current, [key]: "saved" }));
         setFeedback((current) => ({
           ...current,
-          [recordId]: readError(payload, "Não foi possível salvar a alteração."),
+          [key]: "Alteração salva na planilha.",
         }));
-        return;
+        setLastSyncAt(payload.updatedAt);
+      } catch {
+        setSaveStates((current) => ({ ...current, [key]: "error" }));
+        setFeedback((current) => ({
+          ...current,
+          [key]: "A conexão falhou. Tente salvar novamente.",
+        }));
       }
-
-      setRecords((current) =>
-        current.map((item) => (item.id === recordId ? payload.record : item)),
-      );
-      setDrafts((current) => ({
-        ...current,
-        [recordId]: payload.record.newCompetence,
-      }));
-      setSaveStates((current) => ({ ...current, [recordId]: "saved" }));
-      setFeedback((current) => ({
-        ...current,
-        [recordId]: "Alteração salva na planilha.",
-      }));
-      setLastSyncAt(payload.updatedAt);
-    } catch {
-      setSaveStates((current) => ({ ...current, [recordId]: "error" }));
-      setFeedback((current) => ({
-        ...current,
-        [recordId]: "A conexão falhou. Tente salvar novamente.",
-      }));
-    }
-  }, []);
+    },
+    [],
+  );
 
   return {
     records,
@@ -205,7 +232,7 @@ export function useCompetencyRecords() {
     loadError,
     refresh,
     updateDraft,
-    markPreviousCopied,
+    markTextCopied,
     saveRecord,
   };
 }

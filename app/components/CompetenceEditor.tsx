@@ -3,29 +3,42 @@
 import { useId } from "react";
 import { saveStateMeta, type SaveState } from "@/app/lib/status";
 
+export type CopySource = {
+  label: string;
+  text: string;
+};
+
 type CompetenceEditorProps = {
+  title: string;
+  eyebrow?: string;
+  placeholder: string;
+  saveLabel: string;
+  accentClassName?: string;
   currentName: string;
-  previousCompetence: string;
   savedCompetence: string;
   draft: string;
-  isNewStructure: boolean;
+  copySource?: CopySource;
   onDraftChange: (value: string) => void;
   onSave: () => void | Promise<void>;
-  onKeepPrevious?: () => void;
+  onCopy?: () => void;
   saveState: SaveState;
   feedbackMessage?: string;
   disabled: boolean;
 };
 
 export function CompetenceEditor({
+  title,
+  eyebrow,
+  placeholder,
+  saveLabel,
+  accentClassName = "border-t-[#21b6c7]",
   currentName,
-  previousCompetence,
   savedCompetence,
   draft,
-  isNewStructure,
+  copySource,
   onDraftChange,
   onSave,
-  onKeepPrevious,
+  onCopy,
   saveState,
   feedbackMessage,
   disabled,
@@ -33,18 +46,24 @@ export function CompetenceEditor({
   const textareaId = useId();
   const isSaving = saveState === "saving";
   const isDirty = draft !== savedCompetence;
-  const canKeepPrevious = !isNewStructure && previousCompetence.trim().length > 0;
+  const canCopy = Boolean(copySource?.text.trim());
 
-  function keepPreviousText() {
-    onDraftChange(previousCompetence);
-    onKeepPrevious?.();
+  function copyText() {
+    if (!copySource) return;
+    onDraftChange(copySource.text);
+    onCopy?.();
   }
 
   return (
-    <section className="border border-slate-300 border-t-4 border-t-[#21b6c7] bg-white">
+    <section className={`border border-slate-300 border-t-4 bg-white ${accentClassName}`}>
       <header className="border-b border-slate-200 bg-[#f3f6f6] px-3 py-3 sm:px-4">
-        <h3 className="text-sm font-black text-[#0b1f2a]">
-          Competência no novo regimento
+        {eyebrow ? (
+          <p className="font-utility text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500">
+            {eyebrow}
+          </p>
+        ) : null}
+        <h3 className={`text-sm font-black text-[#0b1f2a] ${eyebrow ? "mt-0.5" : ""}`}>
+          {title}
         </h3>
         <p className="sr-only">Setor: {currentName}</p>
       </header>
@@ -54,7 +73,7 @@ export function CompetenceEditor({
           htmlFor={textareaId}
           className="sr-only"
         >
-          Competência no novo regimento
+          {title}
         </label>
         <textarea
           id={textareaId}
@@ -62,11 +81,7 @@ export function CompetenceEditor({
           onChange={(event) => onDraftChange(event.target.value)}
           disabled={disabled || isSaving}
           rows={8}
-          placeholder={
-            isNewStructure
-              ? "Competência da nova estrutura"
-              : "Competência do novo regimento"
-          }
+          placeholder={placeholder}
           className="min-h-48 w-full resize-y rounded-[3px] border border-slate-300 bg-[#f8fafa] p-3 text-[14px] leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-[#0b6b88] focus:bg-white focus:ring-2 focus:ring-[#21b6c7]/20 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-64 sm:p-4 sm:text-[15px] sm:leading-7"
         />
 
@@ -77,14 +92,14 @@ export function CompetenceEditor({
         />
 
         <div className="mt-3 grid gap-2 sm:flex sm:justify-end">
-          {canKeepPrevious ? (
+          {canCopy ? (
             <button
               type="button"
-              onClick={keepPreviousText}
+              onClick={copyText}
               disabled={disabled || isSaving}
               className="min-h-11 rounded-[3px] border border-slate-400 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#21b6c7]"
             >
-              Usar texto de 2024
+              {copySource?.label}
             </button>
           ) : null}
           <button
@@ -93,7 +108,7 @@ export function CompetenceEditor({
             disabled={disabled || isSaving || !isDirty}
             className="min-h-11 rounded-[3px] bg-[#f5c400] px-5 text-sm font-black text-[#0b1f2a] transition hover:bg-[#ffda1a] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0b6b88]"
           >
-            {isSaving ? "Salvando…" : "Salvar competência"}
+            {isSaving ? "Salvando…" : saveLabel}
           </button>
         </div>
       </div>

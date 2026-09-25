@@ -21,11 +21,18 @@ export interface CompetencyRecord {
   currentName: string;
   previousCompetence: string;
   newCompetence: string;
+  /** Coluna E. `null` enquanto o Apps Script publicado não lê essa coluna. */
+  reviewedCompetence: string | null;
 }
+
+export const COMPETENCY_FIELDS = ["newCompetence", "reviewedCompetence"] as const;
+
+export type CompetencyField = (typeof COMPETENCY_FIELDS)[number];
 
 export interface CompetencyUpdateInput {
   directorate: DirectorateName;
   rowNumber: number;
+  field: CompetencyField;
   competence: string;
   expectedCompetence: string;
 }
@@ -53,5 +60,12 @@ export function isDirectorateName(value: unknown): value is DirectorateName {
   return (
     typeof value === "string" &&
     (DIRECTORATES as readonly string[]).includes(value)
+  );
+}
+
+export function isCompetencyField(value: unknown): value is CompetencyField {
+  return (
+    typeof value === "string" &&
+    (COMPETENCY_FIELDS as readonly string[]).includes(value)
   );
 }

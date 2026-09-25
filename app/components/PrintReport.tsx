@@ -112,6 +112,13 @@ function ReportRecord({
         <h3>Competência no novo regimento</h3>
         <p>{newCompetence}</p>
       </div>
+
+      {status !== "removed" && record.reviewedCompetence !== null ? (
+        <div className="print-record__competence print-record__competence--reviewed">
+          <h3>Competência revisada</h3>
+          <p>{record.reviewedCompetence.trim() || "Não preenchida"}</p>
+        </div>
+      ) : null}
     </article>
   );
 }
