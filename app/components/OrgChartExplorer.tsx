@@ -490,11 +490,11 @@ export function OrgChartExplorer() {
     navigate({ groupId: box.groupId, focusId: box.nodeId });
   }
 
+  // Fechar o painel tira o zoom da caixa e volta a mostrar a página inteira.
   const closePanel = useCallback(() => {
     if (!view.focusId) return;
-    setHistory((current) => [...current, view]);
-    setView({ groupId: view.groupId, focusId: null });
-  }, [view]);
+    navigate({ groupId: view.groupId, focusId: null });
+  }, [view, navigate]);
 
   // Zoom com a roda do mouse, centrado no cursor.
   useEffect(() => {
