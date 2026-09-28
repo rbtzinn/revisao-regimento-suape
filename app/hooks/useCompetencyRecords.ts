@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  ApiErrorResponse,
-  CompetencyField,
-  CompetencyRecord,
-  CompetencyUpdateResponse,
-  RecordsApiResponse,
+import {
+  COMPETENCY_FIELDS,
+  type ApiErrorResponse,
+  type CompetencyField,
+  type CompetencyRecord,
+  type CompetencyUpdateResponse,
+  type RecordsApiResponse,
 } from "@/app/lib/types";
 import type { SaveState } from "@/app/lib/status";
 
@@ -38,6 +39,41 @@ function isSuccessfulUpdate(value: unknown): value is CompetencyUpdateResponse {
       (value as CompetencyUpdateResponse).ok === true &&
       (value as CompetencyUpdateResponse).record,
   );
+}
+
+/**
+ * Última leitura da planilha que deu certo, guardada no navegador. A tela
+ * abre com ela na hora e atualiza em segundo plano, então uma demora ou
+ * falha do Apps Script não deixa a página vazia. As gravações continuam
+ * seguras: o servidor recusa salvar sobre um texto que mudou.
+ */
+const SNAPSHOT_KEY = "portal-records-snapshot-v1";
+
+function readSnapshot(): RecordsApiResponse | undefined {
+  try {
+    const raw = window.localStorage.getItem(SNAPSHOT_KEY);
+    if (!raw) return undefined;
+    const value: unknown = JSON.parse(raw);
+    return isSuccessfulList(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeSnapshot(value: RecordsApiResponse) {
+  try {
+    window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(value));
+  } catch {
+    // Sem espaço ou sem permissão: só perde a abertura instantânea.
+  }
+}
+
+export function clearRecordsSnapshot() {
+  try {
+    window.localStorage.removeItem(SNAPSHOT_KEY);
+  } catch {
+    // Nada a limpar.
+  }
 }
 
 function readError(value: unknown, fallback: string) {
@@ -113,6 +149,7 @@ export function useCompetencyRecords() {
       );
       setRecords(payload.records);
       setLastSyncAt(payload.generatedAt);
+      writeSnapshot(payload);
     } catch (error) {
       setLoadError(
         error instanceof Error
@@ -127,7 +164,26 @@ export function useCompetencyRecords() {
   }, []);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => void refresh(), 0);
+    const initialLoad = window.setTimeout(() => {
+      const snapshot = readSnapshot();
+      if (snapshot && recordsRef.current.length === 0) {
+        recordsRef.current = snapshot.records;
+        setRecords(snapshot.records);
+        setDrafts(
+          Object.fromEntries(
+            snapshot.records.flatMap((record) =>
+              COMPETENCY_FIELDS.map((field) => [
+                draftKey(record.id, field),
+                savedValue(record, field),
+              ]),
+            ),
+          ),
+        );
+        setLastSyncAt(snapshot.generatedAt);
+        setIsLoading(false);
+      }
+      void refresh();
+    }, 0);
     return () => {
       window.clearTimeout(initialLoad);
     };

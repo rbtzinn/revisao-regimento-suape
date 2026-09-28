@@ -6,6 +6,8 @@ import Link from "next/link";
 
 type ProductHeaderProps = {
   title?: string;
+  /** Versão curta do título para celulares, para caber numa linha. */
+  mobileTitle?: string;
   subtitle?: string;
   lastSyncAt?: string;
   spreadsheetUrl?: string;
@@ -112,6 +114,7 @@ function SignOutIcon() {
 
 export function ProductHeader({
   title = "Revisão do Regimento Interno",
+  mobileTitle,
   subtitle = "Regimento 2024 × organograma atual",
   lastSyncAt,
   spreadsheetUrl,
@@ -131,8 +134,15 @@ export function ProductHeader({
       <div className="border-b border-black/20 bg-[#062D46] px-4 py-1.5 text-white sm:px-6 sm:py-2.5 lg:px-8">
         <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="max-w-[18rem] text-sm font-extrabold leading-tight tracking-[-0.015em] text-white sm:max-w-none sm:truncate sm:text-lg">
-              {title}
+            <h1 className="truncate text-sm font-extrabold leading-tight tracking-[-0.015em] text-white sm:text-lg">
+              {mobileTitle ? (
+                <>
+                  <span className="sm:hidden">{mobileTitle}</span>
+                  <span className="hidden sm:inline">{title}</span>
+                </>
+              ) : (
+                title
+              )}
             </h1>
             <p className="sr-only">{subtitle}</p>
           </div>

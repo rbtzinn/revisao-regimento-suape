@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { ProductHeader } from "@/app/components/ProductHeader";
-import { useCompetencyRecords } from "@/app/hooks/useCompetencyRecords";
+import { clearRecordsSnapshot, useCompetencyRecords } from "@/app/hooks/useCompetencyRecords";
 import { getStructureStatus } from "@/app/lib/status";
 import {
   ancestorsOf,
@@ -42,6 +42,10 @@ const PANEL_WIDTH = 440;
 const TOOLBAR_SPACE = 76;
 /** Pixels por ponto do PDF que deixam o texto das caixas legível. */
 const READABLE_PX_PER_PT = 2.6;
+/** No celular, zoom mínimo ao abrir uma página inteira. */
+const PHONE_WIDTH = 640;
+/** A página geral tem letras menores que as páginas das diretorias. */
+const PHONE_PX_PER_PT = { overview: 1.7, directorate: 1.15 };
 const MAX_PX_PER_PT = 3.4;
 const ZOOM_EASING = "cubic-bezier(0.65, 0, 0.25, 1)";
 const ZOOM_MS = 900;
@@ -140,11 +144,33 @@ function focusCamera(scene: Scene, chart: OrgChart, view: View, size: Size) {
   };
 }
 
+/**
+ * Página inteira. No celular em pé a página deitada ficaria minúscula;
+ * então ela abre num zoom legível, a partir do título, e a pessoa arrasta.
+ */
+function pageCamera(scene: Scene, groupId: string, size: Size) {
+  const group = scene.groups.get(groupId) ?? scene.groups.get(OVERVIEW_PAGE_ID);
+  if (!group) return undefined;
+  const fitted = cameraFor(group.bounds, size, false);
+  const scale = group.pages[0]?.scale ?? 1;
+  const readable =
+    group.id === OVERVIEW_PAGE_ID ? PHONE_PX_PER_PT.overview : PHONE_PX_PER_PT.directorate;
+  if (size.width >= PHONE_WIDTH || fitted.k * scale >= readable) return fitted;
+
+  const titleId = group.rootId ?? "assembleia";
+  const title = group.boxes.find((box) => box.nodeId === titleId);
+  if (!title) return fitted;
+  const k = readable / scale;
+  const area = visibleArea(size, false);
+  return {
+    k,
+    x: area.left + area.width / 2 - (title.x + title.w / 2) * k,
+    y: area.top + 24 - title.y * k,
+  };
+}
+
 function viewCamera(scene: Scene, chart: OrgChart, view: View, size: Size) {
-  const focused = focusCamera(scene, chart, view, size);
-  if (focused) return focused;
-  const group = scene.groups.get(view.groupId) ?? scene.groups.get(OVERVIEW_PAGE_ID);
-  return group ? cameraFor(group.bounds, size, Boolean(view.focusId)) : undefined;
+  return focusCamera(scene, chart, view, size) ?? pageCamera(scene, view.groupId, size);
 }
 
 /** Destaca os termos buscados sem depender de acentos ou maiúsculas. */
@@ -446,8 +472,8 @@ export function OrgChartExplorer() {
       setSize(next);
       if (!fittedRef.current && next.width > 0 && next.height > 0) {
         fittedRef.current = true;
-        const overview = scene.groups.get(OVERVIEW_PAGE_ID);
-        if (overview) moveCamera(cameraFor(overview.bounds, next, false), false);
+        const initial = pageCamera(scene, OVERVIEW_PAGE_ID, next);
+        if (initial) moveCamera(initial, false);
       }
     });
     observer.observe(element);
@@ -621,6 +647,7 @@ export function OrgChartExplorer() {
   }
 
   async function signOut() {
+    clearRecordsSnapshot();
     try {
       await fetch("/api/auth", { method: "DELETE" });
     } finally {

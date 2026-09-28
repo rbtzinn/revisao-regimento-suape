@@ -21,7 +21,11 @@ import {
   LoadingState,
 } from "@/app/components/WorkspaceStates";
 import type { FieldEditorState } from "@/app/components/SectorCard";
-import { draftKey, useCompetencyRecords } from "@/app/hooks/useCompetencyRecords";
+import {
+  clearRecordsSnapshot,
+  draftKey,
+  useCompetencyRecords,
+} from "@/app/hooks/useCompetencyRecords";
 import {
   compareWithPreviousSnapshot,
   isRecordPending,
@@ -150,6 +154,7 @@ export function ReviewWorkspace() {
   }
 
   async function signOut() {
+    clearRecordsSnapshot();
     try {
       await fetch("/api/auth", { method: "DELETE" });
     } finally {
@@ -166,6 +171,7 @@ export function ReviewWorkspace() {
         isSyncing={data.isSyncing}
         onSync={() => void data.refresh({ fresh: true })}
         onSignOut={() => void signOut()}
+        mobileTitle="Revisão do RI"
         navLink={{ href: "/organograma", label: "Organograma" }}
       />
 
@@ -188,20 +194,25 @@ export function ReviewWorkspace() {
           </aside>
 
           <section className="min-w-0 space-y-3" aria-labelledby="records-title">
-            <div className="flex min-w-0 items-end justify-between gap-3 border-l-4 border-[#f5c400] bg-white px-3 py-2 ring-1 ring-slate-200 sm:px-4 sm:py-3">
-              <div className="min-w-0">
-                <p className="font-utility text-[10px] font-bold uppercase tracking-[0.16em] text-[#0b6b88] sm:text-xs">
-                  Área selecionada
+            <div className="flex min-w-0 flex-col gap-3 border-l-4 border-[#f5c400] bg-white px-3 py-2.5 ring-1 ring-slate-200 sm:flex-row sm:items-end sm:justify-between sm:px-4 sm:py-3">
+              <div className="flex min-w-0 items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-utility text-[10px] font-bold uppercase tracking-[0.16em] text-[#0b6b88] sm:text-xs">
+                    Área selecionada
+                  </p>
+                  <h2
+                    id="records-title"
+                    className="mt-0.5 break-words text-xl font-black tracking-[-0.025em] text-[#0b1f2a] sm:text-2xl"
+                  >
+                    {sectionTitle}
+                  </h2>
+                </div>
+                <p className="font-utility shrink-0 text-right text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:hidden">
+                  {filteredRecords.length} {filteredRecords.length === 1 ? "setor" : "setores"}
                 </p>
-                <h2
-                  id="records-title"
-                  className="mt-0.5 break-words text-xl font-black tracking-[-0.025em] text-[#0b1f2a] sm:text-2xl"
-                >
-                  {sectionTitle}
-                </h2>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center">
-                <p className="font-utility text-right text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-xs">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
+                <p className="font-utility hidden text-right text-xs font-bold uppercase tracking-[0.1em] text-slate-500 sm:block">
                   {filteredRecords.length} {filteredRecords.length === 1 ? "setor" : "setores"}
                 </p>
                 <ExportPdfButton
@@ -231,6 +242,24 @@ export function ReviewWorkspace() {
               }}
             />
 
+            {!data.isLoading && data.loadError && data.records.length > 0 ? (
+              <div
+                role="status"
+                className="flex flex-wrap items-center justify-between gap-2 border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200"
+              >
+                <span>
+                  A planilha não respondeu agora. Mostrando a última leitura
+                  {formatSyncTime(data.lastSyncAt) ? ` (${formatSyncTime(data.lastSyncAt)})` : ""}.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void data.refresh({ fresh: true })}
+                  className="rounded-[3px] border border-amber-600 bg-white px-3 py-1 hover:bg-amber-100"
+                >
+                  <span className="text-xs font-bold">Tentar de novo</span>
+                </button>
+              </div>
+            ) : null}
             {data.isLoading ? <LoadingState /> : null}
             {!data.isLoading && data.loadError && data.records.length === 0 ? (
               <ErrorState message={data.loadError} onRetry={() => void data.refresh({ fresh: true })} />
