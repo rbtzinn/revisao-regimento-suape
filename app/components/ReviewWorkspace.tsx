@@ -166,6 +166,7 @@ export function ReviewWorkspace() {
         isSyncing={data.isSyncing}
         onSync={() => void data.refresh({ fresh: true })}
         onSignOut={() => void signOut()}
+        navLink={{ href: "/organograma", label: "Organograma" }}
       />
 
       <main className="no-print mx-auto w-full max-w-[1500px] space-y-4 px-3 py-3 sm:px-5 sm:py-5 lg:px-7 lg:py-6">

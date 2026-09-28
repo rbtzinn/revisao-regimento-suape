@@ -2,6 +2,8 @@
 
 /* eslint-disable @next/next/no-img-element -- marcas locais com recorte preciso */
 
+import Link from "next/link";
+
 type ProductHeaderProps = {
   title?: string;
   subtitle?: string;
@@ -10,6 +12,7 @@ type ProductHeaderProps = {
   isSyncing?: boolean;
   onSync?: () => void;
   onSignOut?: () => void;
+  navLink?: { href: string; label: string };
 };
 
 function ComplianceMark() {
@@ -115,6 +118,7 @@ export function ProductHeader({
   isSyncing = false,
   onSync,
   onSignOut,
+  navLink,
 }: ProductHeaderProps) {
   const syncLabel = lastSyncAt
     ? `Planilha conectada. Última sincronização: ${lastSyncAt}`
@@ -146,6 +150,15 @@ export function ProductHeader({
               />
               <span className="hidden text-xs font-bold sm:inline">Conectada</span>
             </span>
+
+            {navLink ? (
+              <Link
+                href={navLink.href}
+                className="inline-flex h-11 items-center justify-center border border-white/25 bg-white/[0.06] px-3 text-xs font-bold text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#062D46]"
+              >
+                {navLink.label}
+              </Link>
+            ) : null}
 
             {onSync ? (
               <button

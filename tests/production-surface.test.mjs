@@ -96,3 +96,19 @@ test("keeps a reviewed competence column next to the new competence", async () =
   assert.match(appsScript, /reviewedCompetence: 5/);
   assert.match(appsScript, /function prepararColunaCompetenciaRevisada/);
 });
+
+test("shows the org chart as a mind map fed by the same spreadsheet", async () => {
+  const [page, explorer, chart] = await Promise.all([
+    source("app/organograma/page.tsx"),
+    source("app/components/OrgChartExplorer.tsx"),
+    source("app/lib/org-chart.ts"),
+  ]);
+
+  assert.match(page, /OrgChartExplorer/);
+  assert.match(explorer, /useCompetencyRecords/);
+  assert.match(explorer, /searchOrgChart/);
+  assert.match(explorer, /Ver todo o organograma/);
+  assert.match(explorer, /Voltar para a visualização anterior/);
+  assert.match(chart, /Diretoria de Administração e Finanças/);
+  assert.doesNotMatch(explorer, /method: "PUT"/);
+});
