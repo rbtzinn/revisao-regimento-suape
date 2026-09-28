@@ -574,3 +574,50 @@ textarea {
     display: none !important;
   }
 }
+
+/* Caixas clicáveis sobre as páginas do organograma. O anel usa --k
+   (zoom atual) para manter a mesma espessura na tela em qualquer zoom. */
+.org-hotspot {
+  cursor: pointer;
+  transition: box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.org-hotspot:hover {
+  background-color: rgb(255 255 255 / 0.14);
+  box-shadow: 0 0 0 calc(2px / var(--k)) #21b6c7;
+}
+
+.org-hotspot:focus-visible {
+  box-shadow: 0 0 0 calc(3px / var(--k)) #21b6c7;
+}
+
+.org-hotspot.is-match {
+  box-shadow:
+    0 0 0 calc(3px / var(--k)) #ffd400,
+    0 0 calc(18px / var(--k)) calc(4px / var(--k)) rgb(255 212 0 / 0.75);
+}
+
+.org-hotspot.is-focus {
+  box-shadow:
+    0 0 0 calc(3px / var(--k)) #062d46,
+    0 0 calc(22px / var(--k)) calc(2px / var(--k)) rgb(6 45 70 / 0.45);
+}
+
+.org-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  min-width: calc(22px / var(--k));
+  height: calc(22px / var(--k));
+  place-items: center;
+  padding: 0 calc(6px / var(--k));
+  border-radius: 999px;
+  background: #ffd400;
+  color: #062d46;
+  font-size: calc(12px / var(--k));
+  font-weight: 800;
+  line-height: 1;
+  transform: translate(40%, -45%);
+  box-shadow: 0 calc(2px / var(--k)) calc(6px / var(--k)) rgb(6 45 70 / 0.35);
+}

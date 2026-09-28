@@ -22,28 +22,33 @@ import {
   type OrgChart,
   type OrgNode,
 } from "@/app/lib/org-chart";
+import { OVERVIEW_PAGE_ID } from "@/app/lib/org-chart-pages";
 import {
-  NODE_HEIGHT,
-  NODE_WIDTH,
-  boundsOf,
-  linePath,
-  layoutOrgChart,
+  buildScene,
+  locateNode,
+  unionBounds,
   type Bounds,
-  type Point,
-} from "@/app/lib/org-chart-layout";
+  type Scene,
+  type SceneBox,
+} from "@/app/lib/org-chart-scene";
 
 const SPREADSHEET_URL =
   "https://docs.google.com/spreadsheets/d/1SkfI6e-l68dvD43PC229rBtV3WEKT2Ikm6wDzo1iEpQ/edit";
 
-const MIN_SCALE = 0.05;
-const MAX_SCALE = 2.2;
-const FOCUS_MAX_SCALE = 1;
+const MIN_SCALE = 0.3;
+const MAX_SCALE = 60;
 const DESKTOP_WIDTH = 1024;
 const PANEL_WIDTH = 440;
 const TOOLBAR_SPACE = 76;
+/** Pixels por ponto do PDF que deixam o texto das caixas legível. */
+const READABLE_PX_PER_PT = 2.6;
+const MAX_PX_PER_PT = 3.4;
+const ZOOM_EASING = "cubic-bezier(0.65, 0, 0.25, 1)";
+const ZOOM_MS = 900;
 
 type Camera = { x: number; y: number; k: number };
 type Size = { width: number; height: number };
+type View = { groupId: string; focusId: string | null };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -64,7 +69,7 @@ function formatSyncTime(value?: string) {
   })}`;
 }
 
-/** Área livre do mapa, descontando a barra de busca e o painel aberto. */
+/** Área livre da tela, descontando a barra de busca e o painel aberto. */
 function visibleArea(size: Size, panelOpen: boolean) {
   const desktop = size.width >= DESKTOP_WIDTH;
   const right = panelOpen && desktop ? PANEL_WIDTH : 0;
@@ -77,9 +82,9 @@ function visibleArea(size: Size, panelOpen: boolean) {
   };
 }
 
-function cameraFor(bounds: Bounds, size: Size, panelOpen: boolean, maxScale: number): Camera {
+function cameraFor(bounds: Bounds, size: Size, panelOpen: boolean, maxScale = MAX_SCALE): Camera {
   const area = visibleArea(size, panelOpen);
-  const padding = 36;
+  const padding = 28;
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const k = clamp(
@@ -99,35 +104,47 @@ function cameraFor(bounds: Bounds, size: Size, panelOpen: boolean, maxScale: num
   };
 }
 
+/** Escala da página (pontos do PDF por unidade do mundo) onde a caixa está. */
+function pageScale(scene: Scene, box: SceneBox) {
+  const group = scene.groups.get(box.groupId);
+  return group?.pages.find((page) => page.page.id === box.pageId)?.scale ?? 1;
+}
+
 /**
- * Enquadra a caixa e as filhas. Se forem muitas, mantém um zoom legível
- * com a caixa no alto da tela e as filhas continuando para baixo.
+ * Enquadra a caixa escolhida e as filhas dela na mesma página. Se ficar
+ * pequeno demais para ler, mantém um zoom legível com a caixa no alto.
  */
-function focusCamera(
-  chart: OrgChart,
-  positions: Map<string, Point>,
-  id: string,
-  size: Size,
-): Camera | undefined {
-  const node = chart.nodes.get(id);
-  const point = positions.get(id);
-  if (!node || !point) return undefined;
-  const points = [id, ...node.childIds]
-    .map((nodeId) => positions.get(nodeId))
-    .filter((item): item is Point => Boolean(item));
-  const bounds = boundsOf(points);
-  const fitted = cameraFor(bounds, size, true, FOCUS_MAX_SCALE);
-  const readable = size.width >= DESKTOP_WIDTH ? 0.8 : 0.62;
+function focusCamera(scene: Scene, chart: OrgChart, view: View, size: Size) {
+  if (!view.focusId) return undefined;
+  const group = scene.groups.get(view.groupId);
+  const box =
+    group?.boxes.find((item) => item.nodeId === view.focusId) ??
+    locateNode(scene, chart, view.focusId)?.box;
+  if (!group || !box) return undefined;
+
+  const childIds = new Set(chart.nodes.get(view.focusId)?.childIds ?? []);
+  const related = group.boxes.filter(
+    (item) => item.pageId === box.pageId && childIds.has(item.nodeId),
+  );
+  const bounds = unionBounds([box, ...related]);
+  const scale = pageScale(scene, box);
+  const fitted = cameraFor(bounds, size, true, MAX_PX_PER_PT / scale);
+  const readable = (size.width >= DESKTOP_WIDTH ? READABLE_PX_PER_PT : 2) / scale;
   if (fitted.k >= readable) return fitted;
 
-  // Muitas filhas: zoom legível com a caixa no alto e as filhas abaixo.
   const area = visibleArea(size, true);
-  const k = readable;
   return {
-    k,
-    x: area.left + area.width / 2 - point.x * k,
-    y: area.top + 40 - (point.y - NODE_HEIGHT / 2) * k,
+    k: readable,
+    x: area.left + area.width / 2 - (box.x + box.w / 2) * readable,
+    y: area.top + 36 - box.y * readable,
   };
+}
+
+function viewCamera(scene: Scene, chart: OrgChart, view: View, size: Size) {
+  const focused = focusCamera(scene, chart, view, size);
+  if (focused) return focused;
+  const group = scene.groups.get(view.groupId) ?? scene.groups.get(OVERVIEW_PAGE_ID);
+  return group ? cameraFor(group.bounds, size, Boolean(view.focusId)) : undefined;
 }
 
 /** Destaca os termos buscados sem depender de acentos ou maiúsculas. */
@@ -374,14 +391,14 @@ export function OrgChartExplorer() {
   const router = useRouter();
   const data = useCompetencyRecords();
   const chart = useMemo(() => buildOrgChart(data.records), [data.records]);
-  const layout = useMemo(() => layoutOrgChart(chart), [chart]);
+  const scene = useMemo(() => buildScene(), []);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>();
-  const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, k: 0.2 });
+  const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, k: 1 });
   const [animating, setAnimating] = useState(false);
-  const [focusId, setFocusId] = useState<string | null>(null);
-  const [history, setHistory] = useState<Array<string | null>>([]);
+  const [view, setView] = useState<View>({ groupId: OVERVIEW_PAGE_ID, focusId: null });
+  const [history, setHistory] = useState<View[]>([]);
   const [query, setQuery] = useState("");
   const [resultsOpen, setResultsOpen] = useState(false);
 
@@ -405,78 +422,79 @@ export function OrgChartExplorer() {
     setAnimating(animate);
     setCamera(next);
     if (animate) {
-      animationTimer.current = window.setTimeout(() => setAnimating(false), 700);
+      animationTimer.current = window.setTimeout(() => setAnimating(false), ZOOM_MS + 50);
     }
   }, []);
 
-  const frameView = useCallback(
-    (id: string | null, animate = true) => {
+  const frame = useCallback(
+    (target: View, animate = true) => {
       const currentSize = sizeRef.current;
       if (!currentSize) return;
-      if (id) {
-        const next = focusCamera(chart, layout.positions, id, currentSize);
-        if (next) moveCamera(next, animate);
-      } else {
-        moveCamera(cameraFor(layout.bounds, currentSize, false, FOCUS_MAX_SCALE), animate);
-      }
+      const next = viewCamera(scene, chart, target, currentSize);
+      if (next) moveCamera(next, animate);
     },
-    [chart, layout, moveCamera],
+    [scene, chart, moveCamera],
   );
 
-  // Mede o mapa e enquadra o organograma inteiro na primeira vez.
+  // Mede a tela e enquadra a página geral na primeira vez.
   useEffect(() => {
     const element = viewportRef.current;
     if (!element) return;
     const observer = new ResizeObserver(([entry]) => {
-      const next = {
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      };
+      const next = { width: entry.contentRect.width, height: entry.contentRect.height };
       sizeRef.current = next;
       setSize(next);
       if (!fittedRef.current && next.width > 0 && next.height > 0) {
         fittedRef.current = true;
-        moveCamera(cameraFor(layout.bounds, next, false, FOCUS_MAX_SCALE), false);
+        const overview = scene.groups.get(OVERVIEW_PAGE_ID);
+        if (overview) moveCamera(cameraFor(overview.bounds, next, false), false);
       }
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [layout.bounds, moveCamera]);
+  }, [scene, moveCamera]);
 
-  // As linhas extras da planilha mudam o desenho depois do carregamento.
-  const untouched = history.length === 0 && !focusId;
-  useEffect(() => {
-    if (untouched && fittedRef.current) frameView(null, false);
-    // Só reage à troca de desenho, não a cada navegação.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout]);
-
-  const goTo = useCallback(
-    (id: string | null) => {
-      if (id === focusId) {
-        frameView(id);
-        return;
+  const navigate = useCallback(
+    (target: View) => {
+      if (target.groupId !== view.groupId || target.focusId !== view.focusId) {
+        setHistory((current) => [...current, view]);
+        setView(target);
       }
-      setHistory((current) => [...current, focusId]);
-      setFocusId(id);
-      frameView(id);
+      frame(target);
     },
-    [focusId, frameView],
+    [view, frame],
   );
 
   const goBack = useCallback(() => {
     if (history.length === 0) return;
     const previous = history[history.length - 1];
     setHistory((current) => current.slice(0, -1));
-    setFocusId(previous);
-    frameView(previous);
-  }, [history, frameView]);
+    setView(previous);
+    frame(previous);
+  }, [history, frame]);
+
+  /** Abre as competências de um setor, indo até a página onde ele está. */
+  const openNode = useCallback(
+    (nodeId: string) => {
+      const location = locateNode(scene, chart, nodeId);
+      navigate({ groupId: location?.box.groupId ?? view.groupId, focusId: nodeId });
+    },
+    [scene, chart, navigate, view.groupId],
+  );
+
+  function onBoxClick(box: SceneBox) {
+    if (box.groupId === OVERVIEW_PAGE_ID && scene.groupByRoot.has(box.nodeId)) {
+      navigate({ groupId: box.nodeId, focusId: null });
+      return;
+    }
+    navigate({ groupId: box.groupId, focusId: box.nodeId });
+  }
 
   const closePanel = useCallback(() => {
-    if (!focusId) return;
-    setHistory((current) => [...current, focusId]);
-    setFocusId(null);
-  }, [focusId]);
+    if (!view.focusId) return;
+    setHistory((current) => [...current, view]);
+    setView({ groupId: view.groupId, focusId: null });
+  }, [view]);
 
   // Zoom com a roda do mouse, centrado no cursor.
   useEffect(() => {
@@ -492,11 +510,7 @@ export function OrgChartExplorer() {
       const k = clamp(current.k * Math.exp(-delta * 0.0016), MIN_SCALE, MAX_SCALE);
       const ratio = k / current.k;
       moveCamera(
-        {
-          k,
-          x: mouseX - (mouseX - current.x) * ratio,
-          y: mouseY - (mouseY - current.y) * ratio,
-        },
+        { k, x: mouseX - (mouseX - current.x) * ratio, y: mouseY - (mouseY - current.y) * ratio },
         false,
       );
     };
@@ -538,11 +552,7 @@ export function OrgChartExplorer() {
       gesture.distance = distance;
       gesture.moved = true;
       moveCamera(
-        {
-          k,
-          x: centerX - (centerX - current.x) * ratio,
-          y: centerY - (centerY - current.y) * ratio,
-        },
+        { k, x: centerX - (centerX - current.x) * ratio, y: centerY - (centerY - current.y) * ratio },
         false,
       );
       return;
@@ -564,40 +574,28 @@ export function OrgChartExplorer() {
     if (pointersRef.current.size < 2) gestureRef.current.distance = undefined;
   }
 
-  // Busca interativa.
-  const terms = useMemo(
-    () => normalizeText(query).split(" ").filter(Boolean),
-    [query],
-  );
+  // Busca interativa: cada resultado aponta para a caixa onde aparece.
+  const terms = useMemo(() => normalizeText(query).split(" ").filter(Boolean), [query]);
   const matches = useMemo(() => searchOrgChart(chart, query), [chart, query]);
-  const matchSet = useMemo(() => new Set(matches), [matches]);
-  const pathSet = useMemo(() => {
-    const set = new Set<string>();
-    for (const id of matches) {
-      for (const ancestor of ancestorsOf(chart, id)) set.add(ancestor.id);
-    }
-    return set;
-  }, [chart, matches]);
   const searching = terms.length > 0;
-
-  // Enquadra os resultados enquanto a pessoa digita.
-  useEffect(() => {
-    if (!searching || matches.length === 0) return;
-    const timer = window.setTimeout(() => {
-      const currentSize = sizeRef.current;
-      if (!currentSize) return;
-      const points = matches
-        .map((id) => layout.positions.get(id))
-        .filter((point): point is Point => Boolean(point));
-      moveCamera(
-        cameraFor(boundsOf(points), currentSize, Boolean(focusId), FOCUS_MAX_SCALE),
-        true,
-      );
-    }, 450);
-    return () => window.clearTimeout(timer);
-    // focusId fica de fora: abrir um resultado não deve refazer este enquadramento.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matches, searching, layout, moveCamera]);
+  const matchLocations = useMemo(
+    () =>
+      matches
+        .map((id) => locateNode(scene, chart, id)?.box)
+        .filter((box): box is SceneBox => Boolean(box)),
+    [scene, chart, matches],
+  );
+  const matchedBoxNodes = useMemo(
+    () => new Set(matchLocations.map((box) => box.nodeId)),
+    [matchLocations],
+  );
+  const matchesByGroup = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const box of matchLocations) {
+      counts.set(box.groupId, (counts.get(box.groupId) ?? 0) + 1);
+    }
+    return counts;
+  }, [matchLocations]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -614,7 +612,7 @@ export function OrgChartExplorer() {
     if (event.key === "Enter" && matches[0]) {
       event.preventDefault();
       setResultsOpen(false);
-      goTo(matches[0]);
+      openNode(matches[0]);
     }
     if (event.key === "Escape") {
       if (resultsOpen) setResultsOpen(false);
@@ -631,8 +629,8 @@ export function OrgChartExplorer() {
     }
   }
 
-  const focusNode = focusId ? chart.nodes.get(focusId) : undefined;
-  const focusChildren = new Set(focusNode?.childIds ?? []);
+  const focusNode = view.focusId ? chart.nodes.get(view.focusId) : undefined;
+  const transition = animating ? `transform ${ZOOM_MS}ms ${ZOOM_EASING}` : undefined;
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden text-[#0b1f2a]">
@@ -646,7 +644,7 @@ export function OrgChartExplorer() {
         navLink={{ href: "/", label: "Revisão" }}
       />
 
-      <main className="relative min-h-0 flex-1 overflow-hidden">
+      <main className="relative min-h-0 flex-1 overflow-hidden bg-[#e7eced]">
         <div className="absolute inset-x-3 top-3 z-20 flex items-start gap-2 sm:inset-x-4 lg:right-auto lg:w-[640px]">
           <button
             type="button"
@@ -660,7 +658,7 @@ export function OrgChartExplorer() {
           </button>
           <button
             type="button"
-            onClick={() => goTo(null)}
+            onClick={() => navigate({ groupId: OVERVIEW_PAGE_ID, focusId: null })}
             aria-label="Ver todo o organograma"
             title="Ver todo o organograma"
             className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-[#062d46] px-3 text-white shadow-sm transition hover:bg-[#0b4a6b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5c400] sm:px-4"
@@ -721,13 +719,13 @@ export function OrgChartExplorer() {
                       .slice(-1)[0];
                     const snippet = competenceSnippet(node, terms);
                     return (
-                      <li key={id} role="option" aria-selected={id === focusId}>
+                      <li key={id} role="option" aria-selected={id === view.focusId}>
                         <button
                           type="button"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => {
                             setResultsOpen(false);
-                            goTo(id);
+                            openNode(id);
                           }}
                           className="block w-full px-4 py-2 text-left hover:bg-[#eef7f8] focus-visible:bg-[#eef7f8] focus-visible:outline-none"
                         >
@@ -770,91 +768,74 @@ export function OrgChartExplorer() {
           <div
             className="absolute left-0 top-0 origin-top-left"
             style={{
-              transform: `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.k})`,
-              transition: animating
-                ? "transform 650ms cubic-bezier(0.22, 0.8, 0.2, 1)"
-                : undefined,
+              transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`,
+              transition,
+              ["--k" as string]: camera.k,
             }}
           >
-            <svg
-              aria-hidden="true"
-              className="pointer-events-none absolute left-0 top-0 overflow-visible"
-              width="1"
-              height="1"
-            >
-              {[...layout.lines]
-                .sort((a, b) => Number(a.parentId === focusId) - Number(b.parentId === focusId))
-                .map((line) => {
-                  const lit = line.childId
-                    ? matchSet.has(line.childId) || pathSet.has(line.childId)
-                    : pathSet.has(line.parentId);
-                  const dimmed = searching && !lit;
-                  const active = line.parentId === focusId;
-                  return (
-                    <path
-                      key={`${line.parentId}-${line.childId ?? "tronco"}-${line.points[0].x}-${line.points[0].y}`}
-                      d={linePath(line)}
-                      fill="none"
-                      stroke={active ? "#0b6b88" : "#1f2a33"}
-                      strokeWidth={active ? 3 : 2}
-                      strokeLinecap="square"
-                      vectorEffect="non-scaling-stroke"
-                      opacity={dimmed ? 0.15 : 0.9}
-                    />
-                  );
-                })}
-            </svg>
-
-            {chart.order.map((id) => {
-              const node = chart.nodes.get(id);
-              const point = layout.positions.get(id);
-              if (!node || !point) return null;
-              const isFocus = id === focusId;
-              const isMatch = matchSet.has(id);
-              const dimmed = searching && !isMatch && !pathSet.has(id);
-              const faded = searching && !isMatch && pathSet.has(id);
+            {[...scene.groups.values()].map((group) => {
+              const active = group.id === view.groupId;
               return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={(event) => {
-                    // Um arraste não abre a caixa; Enter/espaço (detail 0) sempre abre.
-                    if (event.detail !== 0 && gestureRef.current.moved) return;
-                    goTo(id);
-                  }}
-                  aria-label={nodeLabel(node)}
-                  aria-pressed={isFocus}
-                  title={nodeLabel(node)}
-                  className={`absolute flex items-center justify-center rounded-full px-5 text-center uppercase transition-[box-shadow,opacity,transform] duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#21b6c7] ${
-                    node.highlight
-                      ? "bg-[#f8b323] text-[#2c56a0]"
-                      : "bg-[#3560a9] text-white hover:bg-[#2b5196]"
-                  } ${
-                    isMatch
-                      ? "shadow-[0_0_0_5px_#ffe45c,0_10px_28px_-10px_rgba(6,45,70,0.6)]"
-                      : isFocus
-                        ? "shadow-[0_0_0_5px_#062d46,0_10px_28px_-10px_rgba(6,45,70,0.6)]"
-                        : focusChildren.has(id)
-                          ? "shadow-[0_0_0_3px_#9fd9e0]"
-                          : "shadow-[0_6px_16px_-10px_rgba(6,45,70,0.7)]"
-                  } ${dimmed ? "opacity-20" : faded ? "opacity-60" : "opacity-100"}`}
-                  style={{
-                    left: point.x - NODE_WIDTH / 2,
-                    top: point.y - NODE_HEIGHT / 2,
-                    width: NODE_WIDTH,
-                    height: NODE_HEIGHT,
-                  }}
+                <div
+                  key={group.id}
+                  aria-hidden={!active}
+                  className={`absolute left-0 top-0 transition-opacity duration-700 ${
+                    active ? "opacity-100" : "pointer-events-none opacity-0"
+                  }`}
+                  style={{ zIndex: group.id === OVERVIEW_PAGE_ID ? 0 : 1 }}
                 >
-                  <span
-                    className={`line-clamp-4 py-0.5 leading-[1.25] [overflow-wrap:anywhere] ${
-                      node.highlight
-                        ? "text-[14px] font-black"
-                        : "text-[12px] font-bold"
-                    }`}
-                  >
-                    {nodeLabel(node)}
-                  </span>
-                </button>
+                  {group.pages.map((item) => (
+                    // eslint-disable-next-line @next/next/no-img-element -- SVG vetorial do PDF, precisa ficar nítido no zoom
+                    <img
+                      key={item.page.id}
+                      src={item.page.src}
+                      alt=""
+                      draggable={false}
+                      className="absolute max-w-none bg-white shadow-[0_18px_50px_-24px_rgba(6,45,70,0.55)]"
+                      style={{
+                        left: item.x,
+                        top: item.y,
+                        width: item.page.width * item.scale,
+                        height: item.page.height * item.scale,
+                      }}
+                    />
+                  ))}
+
+                  {active
+                    ? group.boxes.map((box) => {
+                        const node = chart.nodes.get(box.nodeId);
+                        if (!node) return null;
+                        const isFocus = box.nodeId === view.focusId;
+                        const isMatch = searching && matchedBoxNodes.has(box.nodeId);
+                        const inside =
+                          group.id === OVERVIEW_PAGE_ID ? matchesByGroup.get(box.nodeId) : undefined;
+                        return (
+                          <button
+                            key={`${box.pageId}-${box.nodeId}`}
+                            type="button"
+                            onClick={(event) => {
+                              // Um arraste não abre a caixa; Enter/espaço (detail 0) sempre abre.
+                              if (event.detail !== 0 && gestureRef.current.moved) return;
+                              onBoxClick(box);
+                            }}
+                            aria-label={nodeLabel(node)}
+                            aria-pressed={isFocus}
+                            title={nodeLabel(node)}
+                            className={`org-hotspot absolute rounded-full focus-visible:outline-none ${
+                              isFocus ? "is-focus" : ""
+                            } ${isMatch || (searching && inside) ? "is-match" : ""}`}
+                            style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+                          >
+                            {searching && inside ? (
+                              <span className="org-badge font-utility" aria-hidden="true">
+                                {inside}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })
+                    : null}
+                </div>
               );
             })}
           </div>
@@ -891,7 +872,7 @@ export function OrgChartExplorer() {
             node={focusNode}
             terms={terms}
             isLoading={data.isLoading}
-            onSelect={goTo}
+            onSelect={openNode}
             onClose={closePanel}
           />
         ) : null}
