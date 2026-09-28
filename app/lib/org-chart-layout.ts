@@ -2,110 +2,298 @@ import type { OrgChart } from "@/app/lib/org-chart";
 
 export const NODE_WIDTH = 264;
 export const NODE_HEIGHT = 80;
-const COLUMN_GAP = 84;
-const ROW_GAP = 16;
-const BRANCH_GAP = 34;
-const CHAIN_GAP = 150;
+/** Espaço vertical entre um nível e o seguinte (a barra fica no meio). */
+const LEVEL_GAP = 96;
+/** Espaço entre caixas lado a lado. */
+const SIBLING_GAP = 28;
+/** Espaço entre as diretorias na linha de baixo. */
+const DIRECTORATE_GAP = 96;
+/** Espaço livre no meio da faixa das assessorias, por onde passa o tronco. */
+const TRUNK_GAP = 120;
+/** Recuo das caixas empilhadas em relação à caixa de cima. */
+const STACK_INDENT = 56;
+const STACK_GAP = 18;
+/** Linha vertical que desce pela esquerda das caixas empilhadas. */
+const SPINE_OFFSET = 28;
+
+/** Mesma ordem das diretorias na primeira página do PDF. */
+const DIRECTORATE_ORDER = ["daf", "dinfra", "dgi", "dgp", "dsi", "drig", "djur"];
+
+/** Próxima caixa da cadeia principal; a Presidência é o fim dela. */
+const CHAIN_NEXT: Record<string, string> = {
+  assembleia: "conselho-administracao",
+  "conselho-administracao": "presidencia",
+};
 
 export type Point = { x: number; y: number };
 export type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
+/** Linha do organograma; `parentId` e `childId` servem para destacar e apagar. */
+export type OrgLine = { points: Point[]; parentId: string; childId?: string };
 export type OrgLayout = {
   positions: Map<string, Point>;
+  lines: OrgLine[];
   bounds: Bounds;
-  hubId: string;
 };
 
 /**
- * Mapa mental em duas alas: a Diretoria da Presidência fica no centro, com
- * suas unidades e diretorias abrindo para a esquerda e para a direita. Acima
- * dela, em coluna, ficam o Conselho de Administração e a Assembleia Geral,
- * com os órgãos colegiados ao lado, como na primeira página do PDF.
+ * Pedaço já desenhado do organograma. A caixa do topo fica centrada em
+ * x = 0, com o topo em y = 0; `minX`/`maxX` e `height` dão a área ocupada.
  */
-export function layoutOrgChart(chart: OrgChart, hubId = "presidencia"): OrgLayout {
-  const positions = new Map<string, Point>();
-  const hub = chart.nodes.get(hubId);
-  if (!hub) throw new Error(`Nó central ausente: ${hubId}`);
+type Block = {
+  positions: Map<string, Point>;
+  lines: OrgLine[];
+  minX: number;
+  maxX: number;
+  height: number;
+};
 
-  const column = NODE_WIDTH + COLUMN_GAP;
+function single(id: string): Block {
+  return {
+    positions: new Map([[id, { x: 0, y: NODE_HEIGHT / 2 }]]),
+    lines: [],
+    minX: -NODE_WIDTH / 2,
+    maxX: NODE_WIDTH / 2,
+    height: NODE_HEIGHT,
+  };
+}
 
-  for (const side of [-1, 1] as const) {
-    const branches = hub.childIds.filter(
-      (id) => chart.nodes.get(id)?.side === side,
+function place(target: Block, block: Block, dx: number, dy: number) {
+  for (const [id, point] of block.positions) {
+    target.positions.set(id, { x: point.x + dx, y: point.y + dy });
+  }
+  for (const line of block.lines) {
+    target.lines.push({
+      ...line,
+      points: line.points.map((point) => ({ x: point.x + dx, y: point.y + dy })),
+    });
+  }
+  target.minX = Math.min(target.minX, block.minX + dx);
+  target.maxX = Math.max(target.maxX, block.maxX + dx);
+  target.height = Math.max(target.height, block.height + dy);
+}
+
+/** Filhas empilhadas embaixo, ligadas por uma linha vertical à esquerda. */
+function stack(chart: OrgChart, id: string): Block {
+  const node = chart.nodes.get(id);
+  const block = single(id);
+  if (!node || node.childIds.length === 0) return block;
+
+  const spineX = -NODE_WIDTH / 2 + SPINE_OFFSET;
+  const childX = -NODE_WIDTH / 2 + STACK_INDENT + NODE_WIDTH / 2;
+  let cursor = NODE_HEIGHT + STACK_GAP;
+  let lastY = NODE_HEIGHT / 2;
+
+  for (const childId of node.childIds) {
+    const child = stack(chart, childId);
+    place(block, child, childX, cursor);
+    lastY = cursor + NODE_HEIGHT / 2;
+    block.lines.push({
+      parentId: id,
+      childId,
+      points: [
+        { x: spineX, y: lastY },
+        { x: childX, y: lastY },
+      ],
+    });
+    cursor += child.height + STACK_GAP;
+  }
+
+  block.lines.push({
+    parentId: id,
+    points: [
+      { x: spineX, y: NODE_HEIGHT / 2 },
+      { x: spineX, y: lastY },
+    ],
+  });
+  return block;
+}
+
+/**
+ * Coloca blocos lado a lado a partir de `top`, com uma barra horizontal em
+ * `barY` e uma descida até cada caixa. Devolve o x da primeira e da última.
+ */
+function row(
+  target: Block,
+  parentId: string,
+  blocks: Array<{ id: string; block: Block }>,
+  startX: number,
+  top: number,
+  gap: number,
+) {
+  let cursor = startX;
+  const centers: number[] = [];
+  for (const { id, block } of blocks) {
+    const dx = cursor - block.minX;
+    place(target, block, dx, top);
+    centers.push(dx);
+    target.lines.push({
+      parentId,
+      childId: id,
+      points: [
+        { x: dx, y: top - LEVEL_GAP / 2 },
+        { x: dx, y: top + NODE_HEIGHT / 2 },
+      ],
+    });
+    cursor = dx + block.maxX + gap;
+  }
+  return { first: centers[0], last: centers[centers.length - 1], end: cursor - gap };
+}
+
+function rowWidth(blocks: Array<{ block: Block }>, gap: number) {
+  return (
+    blocks.reduce((sum, { block }) => sum + block.maxX - block.minX, 0) +
+    gap * Math.max(0, blocks.length - 1)
+  );
+}
+
+/** Diretoria: filhas em linha, cada uma com as suas empilhadas embaixo. */
+function directorate(chart: OrgChart, id: string): Block {
+  const node = chart.nodes.get(id);
+  if (!node || node.childIds.length === 0) return single(id);
+  const allLeaves = node.childIds.every(
+    (childId) => (chart.nodes.get(childId)?.childIds.length ?? 0) === 0,
+  );
+  if (allLeaves) return stack(chart, id);
+
+  const block = single(id);
+  const children = node.childIds.map((childId) => ({
+    id: childId,
+    block: stack(chart, childId),
+  }));
+  const top = NODE_HEIGHT + LEVEL_GAP;
+  const width = rowWidth(children, SIBLING_GAP);
+  const placed = row(block, id, children, -width / 2, top, SIBLING_GAP);
+  addBar(block, id, placed.first, placed.last, top);
+  return block;
+}
+
+function addBar(block: Block, parentId: string, first: number, last: number, top: number) {
+  const barY = top - LEVEL_GAP / 2;
+  block.lines.push({
+    parentId,
+    points: [
+      { x: 0, y: NODE_HEIGHT / 2 },
+      { x: 0, y: barY },
+    ],
+  });
+  if (last > first) {
+    block.lines.push({
+      parentId,
+      points: [
+        { x: first, y: barY },
+        { x: last, y: barY },
+      ],
+    });
+  }
+}
+
+/**
+ * Caixa da cadeia principal (Assembleia → Conselho → Presidência): as
+ * unidades de apoio abrem numa faixa dividida pelo tronco, e o tronco
+ * segue até o próximo nível (outra caixa da cadeia ou a linha das diretorias).
+ */
+function trunk(chart: OrgChart, id: string): Block {
+  const node = chart.nodes.get(id);
+  const block = single(id);
+  if (!node) return block;
+
+  const next = CHAIN_NEXT[id];
+  const isHub = !next;
+  const lower = next
+    ? [next]
+    : node.childIds
+        .filter((childId) => chart.nodes.get(childId)?.highlight)
+        .sort(
+          (a, b) =>
+            (DIRECTORATE_ORDER.indexOf(a) + 1 || 99) -
+            (DIRECTORATE_ORDER.indexOf(b) + 1 || 99),
+        );
+  const support = node.childIds.filter((childId) => !lower.includes(childId));
+
+  let cursor = NODE_HEIGHT;
+  let trunkEnd = NODE_HEIGHT / 2;
+
+  if (support.length > 0) {
+    const top = cursor + LEVEL_GAP;
+    const blocks = support.map((childId) => ({ id: childId, block: stack(chart, childId) }));
+    const half = Math.ceil(blocks.length / 2);
+    const left = blocks.slice(0, half);
+    const right = blocks.slice(half);
+    const barY = top - LEVEL_GAP / 2;
+
+    const leftPlaced = row(
+      block,
+      id,
+      left,
+      -TRUNK_GAP / 2 - rowWidth(left, SIBLING_GAP),
+      top,
+      SIBLING_GAP,
     );
-    let cursor = 0;
-    const placed: string[] = [];
-
-    const place = (id: string, level: number): number => {
-      const node = chart.nodes.get(id);
-      if (!node) return cursor;
-      placed.push(id);
-      let y: number;
-      if (node.childIds.length === 0) {
-        y = cursor + NODE_HEIGHT / 2;
-        cursor += NODE_HEIGHT + ROW_GAP;
-      } else {
-        const childYs = node.childIds.map((childId) => place(childId, level + 1));
-        y = (childYs[0] + childYs[childYs.length - 1]) / 2;
-      }
-      positions.set(id, { x: side * level * column, y });
-      return y;
-    };
-
-    branches.forEach((id, index) => {
-      if (index > 0) cursor += BRANCH_GAP;
-      place(id, 1);
+    const rightPlaced = right.length
+      ? row(block, id, right, TRUNK_GAP / 2, top, SIBLING_GAP)
+      : undefined;
+    block.lines.push({
+      parentId: id,
+      points: [
+        { x: leftPlaced.first, y: barY },
+        { x: rightPlaced?.last ?? 0, y: barY },
+      ],
     });
 
-    // Centraliza a ala na altura da Presidência.
-    const offset = (cursor - ROW_GAP) / 2;
-    for (const id of placed) {
-      const point = positions.get(id);
-      if (point) point.y -= offset;
-    }
+    const tallest = Math.max(...blocks.map(({ block: item }) => item.height));
+    cursor = top + tallest;
+    trunkEnd = barY;
   }
 
-  positions.set(hubId, { x: 0, y: 0 });
-
-  // Cadeia de governança acima da Presidência.
-  let wingTop = 0;
-  for (const point of positions.values()) {
-    wingTop = Math.min(wingTop, point.y - NODE_HEIGHT / 2);
-  }
-
-  const chain: string[] = [];
-  for (let id = hub.parentId; id; id = chart.nodes.get(id)?.parentId) chain.push(id);
-
-  let chainY = wingTop - CHAIN_GAP;
-  let childId = hubId;
-  for (const id of chain) {
-    const node = chart.nodes.get(id);
-    if (!node) continue;
-    positions.set(id, { x: 0, y: chainY });
-
-    const siblings = node.childIds.filter((sibling) => sibling !== childId);
-    const half = Math.ceil(siblings.length / 2);
-    const leftGroup = siblings.slice(0, half);
-    const rightGroup = siblings.slice(half);
-
-    for (const [group, side] of [
-      [leftGroup, -1],
-      [rightGroup, 1],
-    ] as const) {
-      const span = (group.length - 1) * (NODE_HEIGHT + ROW_GAP);
-      group.forEach((sibling, index) => {
-        positions.set(sibling, {
-          x: side * column,
-          y: chainY - span / 2 + index * (NODE_HEIGHT + ROW_GAP),
-        });
+  if (lower.length > 0) {
+    const top = cursor + LEVEL_GAP;
+    if (!isHub) {
+      const child = trunk(chart, lower[0]);
+      place(block, child, 0, top);
+      trunkEnd = top + NODE_HEIGHT / 2;
+    } else {
+      const blocks = lower.map((childId) => ({
+        id: childId,
+        block: directorate(chart, childId),
+      }));
+      const width = rowWidth(blocks, DIRECTORATE_GAP);
+      const placed = row(block, id, blocks, -width / 2, top, DIRECTORATE_GAP);
+      block.lines.push({
+        parentId: id,
+        points: [
+          { x: placed.first, y: top - LEVEL_GAP / 2 },
+          { x: placed.last, y: top - LEVEL_GAP / 2 },
+        ],
       });
+      trunkEnd = top - LEVEL_GAP / 2;
     }
-
-    const tallest = Math.max(leftGroup.length, rightGroup.length, 1);
-    chainY -= CHAIN_GAP + ((tallest - 1) * (NODE_HEIGHT + ROW_GAP)) / 2;
-    childId = id;
   }
 
-  return { positions, bounds: boundsOf([...positions.values()]), hubId };
+  if (trunkEnd > NODE_HEIGHT / 2) {
+    block.lines.push({
+      parentId: id,
+      points: [
+        { x: 0, y: NODE_HEIGHT / 2 },
+        { x: 0, y: trunkEnd },
+      ],
+    });
+  }
+  return block;
+}
+
+
+/**
+ * Organograma de cima para baixo, como no PDF: Assembleia Geral no topo,
+ * conselhos no tronco, as unidades da Presidência numa faixa e as
+ * diretorias lado a lado embaixo, cada uma com a sua estrutura.
+ */
+export function layoutOrgChart(chart: OrgChart): OrgLayout {
+  const block = trunk(chart, chart.rootId);
+  return {
+    positions: block.positions,
+    lines: block.lines,
+    bounds: boundsOf([...block.positions.values()]),
+  };
 }
 
 export function boundsOf(points: Point[]): Bounds {
@@ -123,17 +311,8 @@ export function boundsOf(points: Point[]): Bounds {
   return { minX, minY, maxX, maxY };
 }
 
-/** Caminho da linha entre pai e filho, em coordenadas do mapa. */
-export function edgePath(parent: Point, child: Point) {
-  if (Math.abs(child.x - parent.x) < 1) {
-    const down = child.y > parent.y ? 1 : -1;
-    const startY = parent.y + (down * NODE_HEIGHT) / 2;
-    const endY = child.y - (down * NODE_HEIGHT) / 2;
-    return `M ${parent.x} ${startY} L ${child.x} ${endY}`;
-  }
-  const direction = child.x > parent.x ? 1 : -1;
-  const startX = parent.x + (direction * NODE_WIDTH) / 2;
-  const endX = child.x - (direction * NODE_WIDTH) / 2;
-  const middle = (startX + endX) / 2;
-  return `M ${startX} ${parent.y} C ${middle} ${parent.y}, ${middle} ${child.y}, ${endX} ${child.y}`;
+export function linePath(line: OrgLine) {
+  return line.points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
 }

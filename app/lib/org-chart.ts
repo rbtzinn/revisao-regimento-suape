@@ -17,7 +17,6 @@ type OrgUnitSpec = {
   sheetName?: string;
   sheet?: false;
   highlight?: boolean;
-  side?: -1 | 1;
   children?: OrgUnitSpec[];
 };
 
@@ -52,19 +51,17 @@ const ORG_CHART: OrgUnitSpec = {
           tab: "Presidência",
           highlight: true,
           children: [
-            { id: "conselho-etica", name: "Conselho de Ética", sheet: false, side: -1 },
+            { id: "conselho-etica", name: "Conselho de Ética", sheet: false },
             {
               id: "compliance",
               name: "Compliance – Unidade de Integridade, Gestão de Riscos e Controles Internos",
               sheetName:
                 "Compliance - Unidade de Integridade, Gestão de Riscos e Controle Interno",
-              side: -1,
             },
-            { id: "ouvidoria", name: "Ouvidoria", side: -1 },
+            { id: "ouvidoria", name: "Ouvidoria" },
             {
               id: "aepg",
               name: "Assessoria Especial de Planejamento e Gestão",
-              side: -1,
               children: [
                 { id: "coord-licitacoes", name: "Coordenadoria de Licitações" },
                 {
@@ -92,7 +89,6 @@ const ORG_CHART: OrgUnitSpec = {
               id: "ccom",
               name: "Coordenadoria de Comunicação e Marketing",
               acronym: "CCOM",
-              side: -1,
               children: [
                 { id: "assessoria-comunicacao", name: "Assessoria de Comunicação" },
                 {
@@ -111,7 +107,6 @@ const ORG_CHART: OrgUnitSpec = {
               id: "aepe",
               name: "Assessoria Especial de Projetos Estratégicos",
               acronym: "AEPE",
-              side: -1,
               children: [
                 {
                   id: "ce-projetos-estrategicos",
@@ -124,7 +119,6 @@ const ORG_CHART: OrgUnitSpec = {
               name: "Chefia de Gabinete e Relações Institucionais",
               acronym: "CGRI",
               sheetName: "Chefia de Gabinete",
-              side: -1,
               children: [
                 {
                   id: "cev",
@@ -149,14 +143,12 @@ const ORG_CHART: OrgUnitSpec = {
             {
               id: "aeae",
               name: "Assessoria Especial de Assuntos Estratégicos",
-              side: -1,
             },
-            { id: "aeg", name: "Assessoria Especial Governamental", side: -1 },
+            { id: "aeg", name: "Assessoria Especial Governamental" },
             {
               id: "csegp",
               name: "Coordenadoria de Segurança Portuária",
               acronym: "CSEGP",
-              side: -1,
               children: [
                 {
                   id: "ger-administrativa-csegp",
@@ -180,7 +172,6 @@ const ORG_CHART: OrgUnitSpec = {
               acronym: "DRIG",
               tab: "Relações Inst.",
               highlight: true,
-              side: -1,
               children: [
                 {
                   id: "aeri-drig",
@@ -210,7 +201,6 @@ const ORG_CHART: OrgUnitSpec = {
               acronym: "DJUR",
               tab: "Jurídica",
               highlight: true,
-              side: -1,
               children: [
                 {
                   id: "ajdp",
@@ -255,7 +245,6 @@ const ORG_CHART: OrgUnitSpec = {
               acronym: "DGI",
               tab: "Gestão Industrial",
               highlight: true,
-              side: -1,
               children: [
                 {
                   id: "aen",
@@ -290,7 +279,6 @@ const ORG_CHART: OrgUnitSpec = {
               acronym: "DAF",
               tab: "Adm. Finanças",
               highlight: true,
-              side: 1,
               children: [
                 {
                   id: "cga",
@@ -405,7 +393,6 @@ const ORG_CHART: OrgUnitSpec = {
               acronym: "DINFRA",
               tab: "Infraestrutura",
               highlight: true,
-              side: 1,
               children: [
                 {
                   id: "carq",
@@ -483,7 +470,6 @@ const ORG_CHART: OrgUnitSpec = {
               acronym: "DGP",
               tab: "Gestão Portuária",
               highlight: true,
-              side: 1,
               children: [
                 {
                   id: "gpnp",
@@ -554,7 +540,6 @@ const ORG_CHART: OrgUnitSpec = {
               acronym: "DSI",
               tab: "Sustentab. Inov.",
               highlight: true,
-              side: 1,
               children: [
                 {
                   id: "casgf",
@@ -631,7 +616,6 @@ export type OrgNode = {
   acronym?: string;
   highlight: boolean;
   depth: number;
-  side: -1 | 0 | 1;
   parentId?: string;
   childIds: string[];
   record?: CompetencyRecord;
@@ -681,7 +665,6 @@ export function buildOrgChart(records: CompetencyRecord[]): OrgChart {
   function visit(
     spec: OrgUnitSpec,
     depth: number,
-    side: -1 | 0 | 1,
     inheritedTab: DirectorateName | undefined,
     parentId?: string,
   ) {
@@ -701,7 +684,6 @@ export function buildOrgChart(records: CompetencyRecord[]): OrgChart {
       acronym: spec.acronym,
       highlight: Boolean(spec.highlight),
       depth,
-      side,
       parentId,
       childIds: [],
       record,
@@ -711,13 +693,12 @@ export function buildOrgChart(records: CompetencyRecord[]): OrgChart {
     nodes.set(spec.id, node);
 
     for (const child of spec.children ?? []) {
-      const childSide = side !== 0 ? side : (child.side ?? 0);
-      visit(child, depth + 1, childSide, tab, spec.id);
+      visit(child, depth + 1, tab, spec.id);
       node.childIds.push(child.id);
     }
   }
 
-  visit(ORG_CHART, 0, 0, undefined);
+  visit(ORG_CHART, 0, undefined);
 
   // Linhas da planilha sem caixa no PDF continuam visíveis no mapa.
   const extraParents = new Map(
@@ -728,13 +709,11 @@ export function buildOrgChart(records: CompetencyRecord[]): OrgChart {
     const parent = parentId ? nodes.get(parentId) : undefined;
     if (!parent) continue;
     const id = `planilha-${slug(record.directorate)}-${record.rowNumber}`;
-    const side = parent.side !== 0 ? parent.side : -1;
     nodes.set(id, {
       id,
       name: record.currentName.trim(),
       highlight: false,
       depth: parent.depth + 1,
-      side,
       parentId: parent.id,
       childIds: [],
       record,

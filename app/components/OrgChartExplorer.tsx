@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { ProductHeader } from "@/app/components/ProductHeader";
 import { useCompetencyRecords } from "@/app/hooks/useCompetencyRecords";
+import { getStructureStatus } from "@/app/lib/status";
 import {
   ancestorsOf,
   buildOrgChart,
@@ -25,7 +26,7 @@ import {
   NODE_HEIGHT,
   NODE_WIDTH,
   boundsOf,
-  edgePath,
+  linePath,
   layoutOrgChart,
   type Bounds,
   type Point,
@@ -100,7 +101,7 @@ function cameraFor(bounds: Bounds, size: Size, panelOpen: boolean, maxScale: num
 
 /**
  * Enquadra a caixa e as filhas. Se forem muitas, mantém um zoom legível
- * centrado na caixa e deixa as filhas continuarem para cima e para baixo.
+ * com a caixa no alto da tela e as filhas continuando para baixo.
  */
 function focusCamera(
   chart: OrgChart,
@@ -119,12 +120,13 @@ function focusCamera(
   const readable = size.width >= DESKTOP_WIDTH ? 0.8 : 0.62;
   if (fitted.k >= readable) return fitted;
 
+  // Muitas filhas: zoom legível com a caixa no alto e as filhas abaixo.
   const area = visibleArea(size, true);
   const k = readable;
   return {
     k,
-    x: area.left + area.width / 2 - ((bounds.minX + bounds.maxX) / 2) * k,
-    y: area.top + area.height / 2 - point.y * k,
+    x: area.left + area.width / 2 - point.x * k,
+    y: area.top + 40 - (point.y - NODE_HEIGHT / 2) * k,
   };
 }
 
@@ -225,20 +227,32 @@ function SearchIcon() {
 function CompetenceBlock({
   title,
   text,
+  emptyMessage,
+  accentClassName,
   terms,
 }: {
   title: string;
   text: string;
+  emptyMessage: string;
+  accentClassName: string;
   terms: string[];
 }) {
   return (
-    <section className="border-t border-slate-200 pt-4">
-      <h3 className="font-utility text-[11px] font-bold uppercase tracking-[0.14em] text-[#0b6b88]">
+    <section
+      className={`flex flex-col rounded-[4px] border border-slate-200 border-t-4 bg-white ${accentClassName} ${
+        text ? "lg:min-h-[7rem] lg:flex-1 lg:basis-0" : "lg:shrink-0"
+      }`}
+    >
+      <h3 className="font-utility shrink-0 px-4 pb-1 pt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#0b6b88]">
         {title}
       </h3>
-      <p className="mt-2 whitespace-pre-wrap text-[14px] leading-6 text-[#173b4d]">
-        <Highlighted text={text} terms={terms} />
-      </p>
+      {text ? (
+        <p className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap px-4 pb-4 text-[14px] leading-6 text-[#173b4d]">
+          <Highlighted text={text} terms={terms} />
+        </p>
+      ) : (
+        <p className="px-4 pb-4 text-sm italic leading-6 text-slate-500">{emptyMessage}</p>
+      )}
     </section>
   );
 }
@@ -263,6 +277,7 @@ function UnitPanel({
   const newCompetence = record?.newCompetence.trim() ?? "";
   const reviewed = record?.reviewedCompetence?.trim() ?? "";
   const previous = record?.previousCompetence.trim() ?? "";
+  const isNewStructure = record ? getStructureStatus(record) === "new" : false;
   const sheetName = record?.currentName.trim();
   const showSheetName =
     sheetName && normalizeText(sheetName) !== normalizeText(node.name);
@@ -310,7 +325,7 @@ function UnitPanel({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-[#eef3f4] px-4 py-4 sm:px-5 lg:overflow-hidden">
         {isLoading && !record ? (
           <p role="status" className="text-sm text-slate-500">
             Carregando competências da planilha…
@@ -321,18 +336,32 @@ function UnitPanel({
           </p>
         ) : (
           <>
-            {newCompetence ? (
-              <CompetenceBlock title="Competência no novo regimento" text={newCompetence} terms={terms} />
-            ) : (
-              <p className="text-sm leading-6 text-slate-600">
-                A competência no novo regimento ainda não foi escrita.
-              </p>
-            )}
-            {reviewed ? (
-              <CompetenceBlock title="Competência revisada e observações" text={reviewed} terms={terms} />
-            ) : null}
-            {!newCompetence && previous && !normalizeText(previous).includes("nao localizado") ? (
-              <CompetenceBlock title="Competência no regimento de 2024" text={previous} terms={terms} />
+            <CompetenceBlock
+              title="Nova competência"
+              text={newCompetence}
+              emptyMessage="Ainda não foi escrita."
+              accentClassName="border-t-[#0b6b88]"
+              terms={terms}
+            />
+            <CompetenceBlock
+              title="Competência de 2024"
+              text={isNewStructure ? "" : previous}
+              emptyMessage={
+                isNewStructure
+                  ? "Estrutura nova: não existia no regimento de 2024."
+                  : "Sem texto no regimento de 2024."
+              }
+              accentClassName="border-t-slate-400"
+              terms={terms}
+            />
+            {record.reviewedCompetence !== null ? (
+              <CompetenceBlock
+                title="Competência revisada e observações"
+                text={reviewed}
+                emptyMessage="Sem observações."
+                accentClassName="border-t-[#f5c400]"
+                terms={terms}
+              />
             ) : null}
           </>
         )}
@@ -753,27 +782,27 @@ export function OrgChartExplorer() {
               width="1"
               height="1"
             >
-              {chart.order.map((id) => {
-                const node = chart.nodes.get(id);
-                const parentPoint = node?.parentId
-                  ? layout.positions.get(node.parentId)
-                  : undefined;
-                const point = layout.positions.get(id);
-                if (!node?.parentId || !parentPoint || !point) return null;
-                const dimmed = searching && !matchSet.has(id) && !pathSet.has(id);
-                const active = node.parentId === focusId;
-                return (
-                  <path
-                    key={id}
-                    d={edgePath(parentPoint, point)}
-                    fill="none"
-                    stroke={active ? "#0b6b88" : "#1f2a33"}
-                    strokeWidth={active ? 3 : 1.8}
-                    vectorEffect="non-scaling-stroke"
-                    opacity={dimmed ? 0.15 : 0.85}
-                  />
-                );
-              })}
+              {[...layout.lines]
+                .sort((a, b) => Number(a.parentId === focusId) - Number(b.parentId === focusId))
+                .map((line) => {
+                  const lit = line.childId
+                    ? matchSet.has(line.childId) || pathSet.has(line.childId)
+                    : pathSet.has(line.parentId);
+                  const dimmed = searching && !lit;
+                  const active = line.parentId === focusId;
+                  return (
+                    <path
+                      key={`${line.parentId}-${line.childId ?? "tronco"}-${line.points[0].x}-${line.points[0].y}`}
+                      d={linePath(line)}
+                      fill="none"
+                      stroke={active ? "#0b6b88" : "#1f2a33"}
+                      strokeWidth={active ? 3 : 2}
+                      strokeLinecap="square"
+                      vectorEffect="non-scaling-stroke"
+                      opacity={dimmed ? 0.15 : 0.9}
+                    />
+                  );
+                })}
             </svg>
 
             {chart.order.map((id) => {

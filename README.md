@@ -33,7 +33,7 @@ O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por u
 
 ## Organograma
 
-A rota `/organograma` mostra o organograma de 16/06/2026 como um mapa mental navegável. Ela lê as mesmas competências da planilha (pela mesma rota `/api/records`) e só exibe os textos; a edição continua na página inicial. A hierarquia fica em `app/lib/org-chart.ts`: cada caixa aponta para a linha da aba pelo nome da coluna B, e linhas da planilha sem caixa no PDF aparecem ligadas à diretoria da aba.
+A rota `/organograma` mostra o organograma de 16/06/2026 de cima para baixo, como no PDF, com zoom na caixa clicada. Ela lê a nova competência, a de 2024 e as observações da planilha (pela mesma rota `/api/records`) e só exibe os textos; a edição continua na página inicial. A hierarquia fica em `app/lib/org-chart.ts`: cada caixa aponta para a linha da aba pelo nome da coluna B, e linhas da planilha sem caixa no PDF aparecem ligadas à diretoria da aba.
 
 ## Apps Script
 
