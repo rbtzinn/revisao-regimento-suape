@@ -43,6 +43,10 @@ O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por u
 
 A rota `/observacao` é uma tela para escrever a competência revisada e as observações (coluna E) com calma: um setor por vez, sem rolar a página: a nova competência e o campo de observação lado a lado, ocupando a tela, e a competência de 2024 resumida em cima (com "Ver tudo"). Tem busca, filtro por diretoria, "só os que faltam", anterior/próximo, ajuste do tamanho do texto e Ctrl+S para salvar. O link `/observacao?id=…` abre direto num setor; cada setor da página inicial tem um atalho para isso.
 
+### Sugestão de acordo com o guia
+
+Ao lado do campo de observação, o botão **Sugestão de acordo com o guia** lê a nova competência e escreve na observação as orientações dos dois guias de referência que se aplicam ao texto, cada uma com o item de onde saiu: o *Guia para Elaboração de Regimento Interno* (SEPLAN/DF, Portaria nº 25/2012) e o *Manual para Elaboração de Regimento Interno* (Secretaria de Economia/DF, Portaria nº 128/2021). Não usa IA nem serviço externo: são verificações fixas em `app/lib/guide-suggestion.ts` (expressões a evitar, gerúndio, advérbios, atividades rotineiras, finalidades, verbos de garantia, verbo no infinitivo, verbos do nível hierárquico pelo nome do setor, incisos repetidos, pontuação dos incisos e a oração final padrão). A sugestão entra no fim do que já estiver escrito e só vai para a planilha quando alguém salva.
+
 ## Organograma
 
 A rota `/organograma` mostra as próprias páginas do PDF do organograma de 16/06/2026 (em SVG, na pasta `public/organograma-pdf`) com cada caixa clicável. Clicar numa diretoria na página geral dá zoom para dentro da caixa e abre a página dela; clicar num setor mostra a nova competência, a de 2024 e as observações lidas da planilha (pela mesma rota `/api/records`). Só exibe os textos; a edição continua na página inicial.
