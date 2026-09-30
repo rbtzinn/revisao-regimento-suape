@@ -50,6 +50,39 @@ A rota `/organograma` mostra as próprias páginas do PDF do organograma de 16/0
 - `app/lib/org-chart-pages.ts`: posição de cada caixa em cada página do PDF.
 - `app/lib/org-chart.ts`: hierarquia e ligação de cada caixa com a linha da aba (pelo nome da coluna B). Linhas da planilha sem caixa no PDF aparecem na busca, ligadas ao setor acima.
 
+## API oficial do Google Sheets (mais rápida que o Apps Script)
+
+O portal pode ler e gravar direto pela API oficial do Google Sheets, com uma conta de serviço. Salvar cai de 1–3 s para menos de 1 s, e acaba o tempo de "acordar" do Apps Script. **Os dados não mudam de lugar:** a API lê e grava as mesmas células (colunas D e E de cada aba) da mesma planilha; nada é copiado, movido ou apagado. Enquanto a variável `GOOGLE_SERVICE_ACCOUNT_JSON` não existir, o portal continua usando o Apps Script.
+
+### Passo a passo (uma vez só, uns 15 minutos)
+
+**0. Cópia de segurança da planilha.** Na planilha, **Arquivo → Fazer uma cópia** (ou **Arquivo → Histórico de versões → Nomear versão atual**). É só precaução.
+
+**1. Criar um projeto no Google Cloud.** Abra <https://console.cloud.google.com>, clique no seletor de projeto no topo → **Novo projeto** → nome `portal-regimento` → **Criar**. É grátis e não pede cartão. Confira que o projeto novo ficou selecionado no topo.
+
+**2. Ativar a Google Sheets API.** No menu **☰ → APIs e serviços → Biblioteca**, busque **Google Sheets API** → **Ativar**.
+
+**3. Criar a conta de serviço.** Em **APIs e serviços → Credenciais → + Criar credenciais → Conta de serviço**. Nome `portal-regimento` → **Criar e continuar** → pule a parte de papéis/permissões → **Concluir**.
+
+**4. Baixar a chave.** Na lista de contas de serviço, clique na que você criou → aba **Chaves** → **Adicionar chave → Criar nova chave → JSON → Criar**. O navegador baixa um arquivo `.json`. Ele funciona como uma senha: não mande por e-mail ou WhatsApp e não coloque no GitHub. Se aparecer uma mensagem de que a criação de chaves está bloqueada pela organização, crie o projeto com uma conta Google pessoal.
+
+**5. Compartilhar a planilha com a conta de serviço.** Abra o `.json` num editor de texto e copie o valor de `client_email` (termina em `.iam.gserviceaccount.com`). Na planilha, **Compartilhar** → cole esse e-mail → permissão **Editor** → desmarque "Notificar pessoas" → **Compartilhar**.
+
+**6. Colocar a chave na Vercel.** No projeto da Vercel, **Settings → Environment Variables** → **Add**:
+- **Key:** `GOOGLE_SERVICE_ACCOUNT_JSON`
+- **Value:** o conteúdo **inteiro** do arquivo `.json` (abra no editor de texto, selecione tudo, copie e cole)
+- Marque **Production** e **Preview**, ative **Sensitive** e salve.
+
+Não apague as variáveis do Apps Script (`GOOGLE_SHEETS_WEBAPP_URL` e `GOOGLE_SHEETS_WEBAPP_TOKEN`): elas ficam como reserva.
+
+**7. Publicar de novo.** Variáveis novas só valem num deploy novo: **Deployments** → no mais recente, **⋯ → Redeploy**.
+
+**8. Conferir.** Abra o portal, aperte **Atualizar** e salve uma observação. Em **Logs** na Vercel devem aparecer linhas como `[planilha:api] leitura ok em …ms` e `[planilha:api] gravação ok em …ms`. Se aparecer `[planilha] configuration`, a planilha não foi compartilhada com o `client_email` ou a chave foi colada pela metade.
+
+**Para voltar ao Apps Script:** apague a variável `GOOGLE_SERVICE_ACCOUNT_JSON` e faça **Redeploy**.
+
+Opcional: `GOOGLE_SHEETS_SPREADSHEET_ID` troca a planilha usada (por padrão, a "Diretorias x Regimento"). Com a API, edições feitas direto na planilha aparecem no portal em até 5 minutos, ou na hora com **Atualizar**.
+
 ## Apps Script
 
 O código do Apps Script vinculado à planilha fica em `apps-script/Code.gs`. Para atualizá-lo:

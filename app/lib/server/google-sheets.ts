@@ -9,6 +9,14 @@ import {
   parseRecordsResponse,
   parseUpdateResponse,
 } from "@/app/lib/server/google-sheets-contract";
+import { GoogleSheetsError } from "@/app/lib/server/google-sheets-error";
+import {
+  hasServiceAccount,
+  listRecordsFromApi,
+  updateRecordViaApi,
+} from "@/app/lib/server/google-sheets-api";
+
+export { GoogleSheetsError, type GoogleSheetsErrorKind } from "@/app/lib/server/google-sheets-error";
 
 const READ_TIMEOUT_MS = 25_000;
 const WRITE_TIMEOUT_MS = 30_000;
@@ -34,27 +42,6 @@ let pendingRecordsRequest: Promise<RecordsApiResponse> | undefined;
  */
 const RECORDS_TAG = "planilha-registros";
 const SHARED_CACHE_SECONDS = 5 * 60;
-
-export type GoogleSheetsErrorKind =
-  | "configuration"
-  | "timeout"
-  | "network"
-  | "upstream"
-  | "invalid-response"
-  | "conflict"
-  | "unsupported-field";
-
-export class GoogleSheetsError extends Error {
-  constructor(
-    readonly kind: GoogleSheetsErrorKind,
-    readonly upstreamCode?: string,
-    readonly currentValue?: string,
-    readonly detail?: string,
-  ) {
-    super(kind);
-    this.name = "GoogleSheetsError";
-  }
-}
 
 function getConfiguration() {
   const endpoint = process.env.GOOGLE_SHEETS_WEBAPP_URL?.trim();
@@ -198,8 +185,14 @@ async function fetchRecordsFromSheet(url: URL, token: string) {
   throw new GoogleSheetsError("network");
 }
 
+/**
+ * Com a conta de serviço configurada (GOOGLE_SERVICE_ACCOUNT_JSON), lê e
+ * grava pela API oficial do Sheets; sem ela, continua pelo Apps Script.
+ * As duas leem e gravam as mesmas células da mesma planilha.
+ */
 const readSharedRecords = unstable_cache(
   async () => {
+    if (hasServiceAccount()) return listRecordsFromApi();
     const { url, token } = getConfiguration();
     return fetchRecordsFromSheet(url, token);
   },
@@ -262,9 +255,32 @@ function supportsReviewedCompetence() {
   );
 }
 
+function rememberSaved(result: CompetencyUpdateResponse) {
+  if (recordsCache) {
+    recordsCache = {
+      value: {
+        ...recordsCache.value,
+        records: recordsCache.value.records.map((record) =>
+          record.id === result.record.id ? result.record : record,
+        ),
+        generatedAt: result.updatedAt,
+      },
+      storedAt: Date.now(),
+    };
+  }
+  // As outras instâncias passam a ler a planilha de novo.
+  expireSharedRecords();
+}
+
 export async function updateCompetency(
   input: CompetencyUpdateInput,
 ): Promise<CompetencyUpdateResponse> {
+  if (hasServiceAccount()) {
+    const result = await updateRecordViaApi(input);
+    rememberSaved(result);
+    return result;
+  }
+
   const { url, token } = getConfiguration();
 
   // Um Apps Script antigo ignora `field` e gravaria o texto na coluna D.
@@ -289,20 +305,7 @@ export async function updateCompetency(
   const result = parseUpdateResponse(body);
 
   if (result) {
-    if (recordsCache) {
-      recordsCache = {
-        value: {
-          ...recordsCache.value,
-          records: recordsCache.value.records.map((record) =>
-            record.id === result.record.id ? result.record : record,
-          ),
-          generatedAt: result.updatedAt,
-        },
-        storedAt: Date.now(),
-      };
-    }
-    // As outras instâncias passam a ler a planilha de novo.
-    expireSharedRecords();
+    rememberSaved(result);
     return result;
   }
 

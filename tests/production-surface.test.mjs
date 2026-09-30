@@ -126,3 +126,18 @@ test("offers a large screen to write the reviewed competence and notes", async (
   assert.match(workspace, /Competência de 2024/);
   assert.match(workspace, /Nova competência/);
 });
+
+test("can use the official Sheets API instead of Apps Script without moving data", async () => {
+  const [sheets, api, envExample] = await Promise.all([
+    source("app/lib/server/google-sheets.ts"),
+    source("app/lib/server/google-sheets-api.ts"),
+    source(".env.example"),
+  ]);
+
+  assert.match(sheets, /hasServiceAccount\(\)/);
+  assert.match(sheets, /GOOGLE_SHEETS_WEBAPP_TOKEN/);
+  assert.match(api, /GOOGLE_SERVICE_ACCOUNT_JSON/);
+  assert.match(api, /valueInputOption=RAW/);
+  assert.match(api, /"CONFLICT"/);
+  assert.match(envExample, /GOOGLE_SERVICE_ACCOUNT_JSON/);
+});
