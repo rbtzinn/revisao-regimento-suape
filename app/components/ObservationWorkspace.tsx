@@ -15,6 +15,7 @@ import {
   draftKey,
   useCompetencyRecords,
 } from "@/app/hooks/useCompetencyRecords";
+import { suggestObservation } from "@/app/lib/guide-suggestion";
 import { getStructureStatus, saveStateMeta } from "@/app/lib/status";
 import {
   DIRECTORATES,
@@ -560,20 +561,47 @@ export function ObservationWorkspace() {
                     >
                       Observação
                     </label>
-                    <button
-                      type="button"
-                      disabled={!canEdit || !selected.newCompetence.trim()}
-                      onClick={() => {
-                        data.updateDraft(selected.id, FIELD, selected.newCompetence);
-                        data.markTextCopied(selected.id, FIELD, "Texto da nova competência copiado.");
-                      }}
-                      className="min-h-8 border border-[#6b5600]/40 bg-white px-2.5 text-[#6b5600] hover:bg-[#fff3b8] disabled:opacity-40"
-                    >
-                      <span className="text-xs font-bold">
-                        <span className="sm:hidden">Copiar nova</span>
-                        <span className="hidden sm:inline">Usar texto da nova competência</span>
-                      </span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!canEdit || !selected.newCompetence.trim()}
+                        onClick={() => {
+                          data.updateDraft(selected.id, FIELD, selected.newCompetence);
+                          data.markTextCopied(selected.id, FIELD, "Texto da nova competência copiado.");
+                        }}
+                        className="min-h-8 border border-[#6b5600]/40 bg-white px-2.5 text-[#6b5600] hover:bg-[#fff3b8] disabled:opacity-40"
+                      >
+                        <span className="text-xs font-bold">
+                          <span className="sm:hidden">Copiar nova</span>
+                          <span className="hidden sm:inline">Usar texto da nova competência</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canEdit || !selected.newCompetence.trim()}
+                        title="Lê a nova competência e sugere a observação com base nos dois guias de regimento interno"
+                        onClick={() => {
+                          const suggestion = suggestObservation(selected.newCompetence, selected.currentName);
+                          if (!suggestion) {
+                            data.markTextCopied(selected.id, FIELD, "O texto já segue os guias; nenhuma observação a sugerir.");
+                            return;
+                          }
+                          if (draft.includes(suggestion)) {
+                            data.markTextCopied(selected.id, FIELD, "A sugestão dos guias já está na observação.");
+                            return;
+                          }
+                          // Não apaga o que já foi escrito: a sugestão entra no fim.
+                          data.updateDraft(selected.id, FIELD, draft.trim() ? `${draft.trimEnd()}\n\n${suggestion}` : suggestion);
+                          data.markTextCopied(selected.id, FIELD, "Sugestão dos guias inserida. Revise antes de salvar.");
+                        }}
+                        className="min-h-8 border border-[#6b5600]/40 bg-white px-2.5 text-[#6b5600] hover:bg-[#fff3b8] disabled:opacity-40"
+                      >
+                        <span className="text-xs font-bold">
+                          <span className="sm:hidden">Sugestão</span>
+                          <span className="hidden sm:inline">Sugestão de acordo com o guia</span>
+                        </span>
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     id={textareaId}
