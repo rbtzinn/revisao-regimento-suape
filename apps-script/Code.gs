@@ -42,7 +42,7 @@ const REVIEWED_HEADER = "COMPETÊNCIA REVISADA (APÓS REVISÃO)";
 // Cada gravação pelo portal atualiza só a linha salva dentro da cópia;
 // uma edição feita direto na planilha apaga a cópia (gatilho onEdit).
 // Por isso ela pode durar o máximo que o Google permite (6 horas).
-const CACHE_KEY = "records-v1";
+const CACHE_KEY = "records-v2";
 const CACHE_SECONDS = 21600;
 // O CacheService aceita até 100 KB por item; letras acentuadas ocupam mais
 // de um byte, então cada pedaço fica bem abaixo do limite.
@@ -69,23 +69,30 @@ function doGet(e) {
 
 /** Lê as 9 abas (a parte lenta) e monta a resposta em JSON. */
 function buildRecordsBody() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  // Busca todas as abas numa chamada só, em vez de uma por diretoria.
+  const sheets = {};
+  SpreadsheetApp.getActiveSpreadsheet()
+    .getSheets()
+    .forEach(function (sheet) {
+      sheets[sheet.getName()] = sheet;
+    });
   const records = [];
 
   DIRECTORATES.forEach(function (directorate) {
-    const sheet = spreadsheet.getSheetByName(directorate);
+    const sheet = sheets[directorate];
     if (!sheet) return;
 
     const lastRow = sheet.getLastRow();
     if (lastRow < FIRST_DATA_ROW) return;
 
+    // getValues é bem mais rápido que getDisplayValues; as colunas são texto.
     const values = sheet
       .getRange(FIRST_DATA_ROW, 1, lastRow - FIRST_DATA_ROW + 1, COLUMN_COUNT)
-      .getDisplayValues();
+      .getValues();
 
     values.forEach(function (row, index) {
       const isEmpty = row.slice(0, 4).every(function (cell) {
-        return String(cell).trim() === "";
+        return cellText(cell).trim() === "";
       });
       if (isEmpty) return;
       records.push(toRecord(sheet, directorate, FIRST_DATA_ROW + index, row));
@@ -133,13 +140,14 @@ function doPost(e) {
   }
 
   const lock = LockService.getDocumentLock();
-  if (!lock.tryLock(20000)) {
+  if (!lock.tryLock(15000)) {
     return failure("BUSY", "A planilha está ocupada. Tente novamente.");
   }
 
   try {
-    const cell = sheet.getRange(rowNumber, column);
-    const currentValue = String(cell.getDisplayValue());
+    // Lê a linha uma vez só: serve para conferir o conflito e montar a resposta.
+    const row = sheet.getRange(rowNumber, 1, 1, COLUMN_COUNT).getValues()[0];
+    const currentValue = cellText(row[column - 1]);
 
     if (normalize(currentValue) !== normalize(input.expectedCompetence)) {
       return json({
@@ -150,8 +158,7 @@ function doPost(e) {
       });
     }
 
-    const row = sheet.getRange(rowNumber, 1, 1, COLUMN_COUNT).getDisplayValues()[0];
-    cell.setValue(input.competence);
+    sheet.getRange(rowNumber, column).setValue(input.competence);
     row[column - 1] = input.competence;
     const record = toRecord(sheet, input.directorate, rowNumber, row);
     const updatedAt = new Date().toISOString();
@@ -295,17 +302,27 @@ function toRecord(sheet, directorate, rowNumber, row) {
     directorate: directorate,
     sheetId: sheet.getSheetId(),
     rowNumber: rowNumber,
-    previousName: String(row[0]),
-    currentName: String(row[1]),
-    previousCompetence: String(row[2]),
-    newCompetence: String(row[3]),
-    reviewedCompetence: String(row[4] === undefined ? "" : row[4]),
+    previousName: cellText(row[0]),
+    currentName: cellText(row[1]),
+    previousCompetence: cellText(row[2]),
+    newCompetence: cellText(row[3]),
+    reviewedCompetence: cellText(row[4]),
   };
 }
 
+/** Texto de uma célula lida com getValues (datas saem como dd/mm/aaaa). */
+function cellText(value) {
+  if (value === undefined || value === null) return "";
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), "dd/MM/yyyy");
+  }
+  return String(value);
+}
+
 function isAuthorized(token) {
-  const expected =
-    PropertiesService.getScriptProperties().getProperty("PORTAL_TOKEN") || TOKEN_FIXO;
+  if (!token) return false;
+  if (TOKEN_FIXO && token === TOKEN_FIXO) return true;
+  const expected = PropertiesService.getScriptProperties().getProperty("PORTAL_TOKEN");
   return Boolean(expected) && token === expected;
 }
 
