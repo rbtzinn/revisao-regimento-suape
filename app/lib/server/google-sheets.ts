@@ -1,4 +1,4 @@
-import { after } from "next/server";
+import { revalidateTag, unstable_cache } from "next/cache";
 import type {
   CompetencyUpdateInput,
   CompetencyUpdateResponse,
@@ -21,8 +21,19 @@ type RecordsCache = {
   storedAt: number;
 };
 
+// Cópia em memória da instância, atualizada a cada gravação.
 let recordsCache: RecordsCache | undefined;
 let pendingRecordsRequest: Promise<RecordsApiResponse> | undefined;
+
+/**
+ * Cópia compartilhada por todas as instâncias da Vercel (Data Cache). Abrir
+ * o portal lê daqui, sem esperar o Apps Script. Ela é apagada na hora
+ * quando alguém salva pelo portal ou aperta Atualizar, e se renova sozinha
+ * em segundo plano depois de alguns minutos, para trazer edições feitas
+ * direto na planilha. Falhas do Apps Script não são guardadas.
+ */
+const RECORDS_TAG = "planilha-registros";
+const SHARED_CACHE_SECONDS = 5 * 60;
 
 export type GoogleSheetsErrorKind =
   | "configuration"
@@ -187,11 +198,23 @@ async function fetchRecordsFromSheet(url: URL, token: string) {
   throw new GoogleSheetsError("network");
 }
 
+const readSharedRecords = unstable_cache(
+  async () => {
+    const { url, token } = getConfiguration();
+    return fetchRecordsFromSheet(url, token);
+  },
+  ["planilha-registros-v1"],
+  { tags: [RECORDS_TAG], revalidate: SHARED_CACHE_SECONDS },
+);
+
+function expireSharedRecords() {
+  revalidateTag(RECORDS_TAG, { expire: 0 });
+}
+
 function refreshRecords() {
   if (pendingRecordsRequest) return pendingRecordsRequest;
 
-  const { url, token } = getConfiguration();
-  pendingRecordsRequest = fetchRecordsFromSheet(url, token)
+  pendingRecordsRequest = readSharedRecords()
     .then((result) => {
       recordsCache = { value: result, storedAt: Date.now() };
       return result;
@@ -211,20 +234,14 @@ type ListOptions = {
 export async function listCompetencyRecords(
   { fresh = false }: ListOptions = {},
 ): Promise<RecordsApiResponse> {
-  const now = Date.now();
-  const age = recordsCache ? now - recordsCache.storedAt : Infinity;
+  const age = recordsCache ? Date.now() - recordsCache.storedAt : Infinity;
 
-  if (recordsCache && age < FRESH_CACHE_MS) {
+  if (!fresh && recordsCache && age < FRESH_CACHE_MS) {
     return recordsCache.value;
   }
 
-  // Responde na hora com a última leitura e atualiza em segundo plano,
-  // para ninguém esperar o Apps Script ao abrir o portal.
-  if (!fresh && recordsCache && age < STALE_CACHE_MS) {
-    const stale = recordsCache.value;
-    after(() => refreshRecords().catch(() => undefined));
-    return stale;
-  }
+  // Atualizar: descarta a cópia compartilhada e espera a planilha.
+  if (fresh) expireSharedRecords();
 
   try {
     return await refreshRecords();
@@ -284,6 +301,8 @@ export async function updateCompetency(
         storedAt: Date.now(),
       };
     }
+    // As outras instâncias passam a ler a planilha de novo.
+    expireSharedRecords();
     return result;
   }
 

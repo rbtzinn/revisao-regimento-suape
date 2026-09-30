@@ -29,6 +29,14 @@ npm test
 3. Mantenha o repositório privado.
 4. Configure um domínio próprio na área Domains, se desejar.
 
+### Velocidade da leitura
+
+A leitura da planilha passa por três cópias, da mais rápida para a mais lenta:
+
+1. **Navegador:** a última leitura boa fica guardada no aparelho e aparece na hora ao abrir o portal.
+2. **Vercel (Data Cache, via `unstable_cache` com a tag `planilha-registros`):** compartilhada por todas as instâncias. É apagada na hora quando alguém salva pelo portal ou aperta **Atualizar**, e se renova sozinha em segundo plano a cada 5 minutos, para trazer edições feitas direto na planilha. Falhas do Apps Script não são guardadas.
+3. **Apps Script (CacheService):** a leitura das nove abas fica guardada por até 6 horas e é atualizada linha a linha a cada gravação.
+
 O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por uma rota do servidor, envia as edições ao Apps Script e mantém a competência atualizada na coluna D da respectiva aba e a competência revisada (após a revisão das atribuições) na coluna E. A exportação em PDF respeita a diretoria, o status e a busca selecionados na tela.
 
 ## Observações
