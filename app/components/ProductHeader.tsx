@@ -14,7 +14,8 @@ type ProductHeaderProps = {
   isSyncing?: boolean;
   onSync?: () => void;
   onSignOut?: () => void;
-  navLink?: { href: string; label: string };
+  /** Links para as outras telas; `hideOnMobile` some no celular por falta de espaço. */
+  navLinks?: Array<{ href: string; label: string; hideOnMobile?: boolean }>;
 };
 
 function ComplianceMark() {
@@ -121,7 +122,7 @@ export function ProductHeader({
   isSyncing = false,
   onSync,
   onSignOut,
-  navLink,
+  navLinks = [],
 }: ProductHeaderProps) {
   const syncLabel = lastSyncAt
     ? `Planilha conectada. Última sincronização: ${lastSyncAt}`
@@ -161,14 +162,15 @@ export function ProductHeader({
               <span className="hidden text-xs font-bold sm:inline">Conectada</span>
             </span>
 
-            {navLink ? (
+            {navLinks.map((link) => (
               <Link
-                href={navLink.href}
-                className="inline-flex h-11 items-center justify-center border border-white/25 bg-white/[0.06] px-3 text-xs font-bold text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#062D46]"
+                key={link.href}
+                href={link.href}
+                className={`${link.hideOnMobile ? "hidden sm:inline-flex" : "inline-flex"} h-11 items-center justify-center border border-white/25 bg-white/[0.06] px-3 text-xs font-bold text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#062D46]`}
               >
-                {navLink.label}
+                {link.label}
               </Link>
-            ) : null}
+            ))}
 
             {onSync ? (
               <button

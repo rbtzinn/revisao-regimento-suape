@@ -31,6 +31,10 @@ npm test
 
 O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por uma rota do servidor, envia as edições ao Apps Script e mantém a competência atualizada na coluna D da respectiva aba e a competência revisada (após a revisão das atribuições) na coluna E. A exportação em PDF respeita a diretoria, o status e a busca selecionados na tela.
 
+## Observações
+
+A rota `/observacao` é uma tela para escrever a competência revisada e as observações (coluna E) com calma: um setor por vez, com a competência de 2024 e a nova competência em letra grande ao lado de um campo amplo. Tem busca, filtro por diretoria, "só os que faltam", anterior/próximo, ajuste do tamanho do texto e Ctrl+S para salvar. O link `/observacao?id=…` abre direto num setor; cada setor da página inicial tem um atalho para isso.
+
 ## Organograma
 
 A rota `/organograma` mostra as próprias páginas do PDF do organograma de 16/06/2026 (em SVG, na pasta `public/organograma-pdf`) com cada caixa clicável. Clicar numa diretoria na página geral dá zoom para dentro da caixa e abre a página dela; clicar num setor mostra a nova competência, a de 2024 e as observações lidas da planilha (pela mesma rota `/api/records`). Só exibe os textos; a edição continua na página inicial.

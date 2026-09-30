@@ -668,7 +668,10 @@ export function OrgChartExplorer() {
         isSyncing={data.isSyncing}
         onSync={() => void data.refresh({ fresh: true })}
         onSignOut={() => void signOut()}
-        navLink={{ href: "/", label: "Revisão" }}
+        navLinks={[
+          { href: "/observacao", label: "Observações", hideOnMobile: true },
+          { href: "/", label: "Revisão" },
+        ]}
       />
 
       <main className="relative min-h-0 flex-1 overflow-hidden bg-[#e7eced]">

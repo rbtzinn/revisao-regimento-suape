@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import type { CompetencyField, CompetencyRecord } from "@/app/lib/types";
 import {
   getStructureStatus,
@@ -202,6 +203,14 @@ export function SectorCard({
                     feedbackMessage={editors.reviewedCompetence.feedbackMessage}
                     disabled={disabled}
                   />
+                ) : null}
+                {hasReviewedColumn ? (
+                  <Link
+                    href={`/observacao?id=${encodeURIComponent(record.id)}`}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 self-start border border-[#6b5600]/40 bg-[#fffbe6] px-3 text-xs font-bold text-[#6b5600] hover:bg-[#fff3b8] lg:col-span-full"
+                  >
+                    Escrever a observação em tela grande →
+                  </Link>
                 ) : null}
               </>
             )}

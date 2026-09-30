@@ -112,3 +112,17 @@ test("shows the org chart fed by the same spreadsheet", async () => {
   assert.match(chart, /Diretoria de Administração e Finanças/);
   assert.doesNotMatch(explorer, /method: "PUT"/);
 });
+
+test("offers a large screen to write the reviewed competence and notes", async () => {
+  const [page, workspace] = await Promise.all([
+    source("app/observacao/page.tsx"),
+    source("app/components/ObservationWorkspace.tsx"),
+  ]);
+
+  assert.match(page, /ObservationWorkspace/);
+  assert.match(workspace, /useCompetencyRecords/);
+  assert.match(workspace, /reviewedCompetence/);
+  assert.match(workspace, /saveRecord/);
+  assert.match(workspace, /Competência de 2024/);
+  assert.match(workspace, /Nova competência/);
+});
