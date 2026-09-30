@@ -80,7 +80,8 @@ const statusLabel: Record<ObservationStatus, string> = {
   empty: "Sem observação",
 };
 
-function ReadingPanel({
+/** Caixa de texto que ocupa o espaço disponível e rola por dentro. */
+function TextPanel({
   title,
   text,
   emptyMessage,
@@ -97,12 +98,12 @@ function ReadingPanel({
     <section
       className={`flex min-h-0 flex-col border border-slate-300 border-t-4 bg-white ${accentClassName}`}
     >
-      <h3 className="font-utility border-b border-slate-200 bg-[#f3f6f6] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#0b6b88]">
+      <h3 className="font-utility shrink-0 border-b border-slate-200 bg-[#f3f6f6] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#0b6b88]">
         {title}
       </h3>
       {text ? (
         <p
-          className="max-h-[32vh] min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap px-4 py-3 text-[#173b4d] xl:max-h-[calc((100dvh-24rem)/2)]"
+          className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap px-4 py-3 text-[#173b4d]"
           style={{ fontSize, lineHeight: 1.65 }}
         >
           {text}
@@ -123,6 +124,8 @@ export function ObservationWorkspace() {
   const [onlyEmpty, setOnlyEmpty] = useState(false);
   const [selectedId, setSelectedId] = useState<string | undefined>(idFromUrl);
   const [fontSize, setFontSize] = useState(FONT_SIZES[1]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [previousExpanded, setPreviousExpanded] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setFontSize(readFontSize()), 0);
@@ -248,34 +251,11 @@ export function ObservationWorkspace() {
     (isDirty ? saveStateMeta.idle.label : saved.trim() ? "Observação salva na planilha" : "");
   const statusClass = isDirty && !feedback ? saveStateMeta.idle.className : saveStateMeta[saveState].className;
 
-  const saveBar = (
-    <>
-      <p role="status" aria-live="polite" className={`min-w-0 flex-1 text-sm ${statusClass}`}>
-        {statusText}
-      </p>
-      {saveState === "conflict" ? (
-        <button
-          type="button"
-          onClick={() => void data.refresh({ fresh: true })}
-          className="min-h-11 border border-amber-600 bg-white px-3 text-amber-900 hover:bg-amber-50"
-        >
-          <span className="text-sm font-bold">Recarregar dados</span>
-        </button>
-      ) : null}
-      <button
-        type="button"
-        onClick={save}
-        disabled={!canEdit || !isDirty || isSaving}
-        title="Salvar (Ctrl+S)"
-        className="min-h-11 shrink-0 bg-[#062d46] px-5 text-white hover:bg-[#0b6b88] disabled:bg-slate-300 disabled:text-slate-500"
-      >
-        <span className="text-sm font-black">{isSaving ? "Salvando…" : "Salvar observação"}</span>
-      </button>
-    </>
-  );
+  const isNewStructure = selected ? getStructureStatus(selected) === "new" : false;
+  const previousText = selected && !isNewStructure ? selected.previousCompetence.trim() : "";
 
   return (
-    <div className="min-h-screen text-[#0b1f2a]">
+    <div className="flex h-dvh flex-col overflow-hidden text-[#0b1f2a]">
       <ProductHeader
         title="Observações da revisão"
         mobileTitle="Observações"
@@ -290,57 +270,16 @@ export function ObservationWorkspace() {
         ]}
       />
 
-      <main className="mx-auto grid w-full max-w-[1600px] gap-4 px-3 py-3 pb-28 sm:px-5 sm:py-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-5 lg:px-7 lg:pb-8">
-        {/* Lista de setores */}
-        <aside className="min-w-0 self-start border border-slate-300 bg-white lg:sticky lg:top-[8.5rem] lg:flex lg:max-h-[calc(100dvh-10rem)] lg:flex-col">
-          <div className="space-y-2.5 border-b border-slate-200 p-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="font-utility text-[10px] font-bold uppercase tracking-[0.16em] text-[#0b6b88]">
-                Setores
-              </p>
-              <p className="font-utility text-[11px] font-bold text-slate-500">
-                {doneCount} de {reviewable.length} com observação
-              </p>
-            </div>
-            <select
-              value={directorate}
-              onChange={(event) => setDirectorate(event.target.value as DirectorateName | "all")}
-              aria-label="Diretoria"
-              className="min-h-11 w-full rounded-[3px] border border-slate-300 bg-white px-3 text-sm font-semibold text-[#173b4d] outline-none focus:border-[#0b6b88] focus:ring-2 focus:ring-[#21b6c7]/20"
-            >
-              <option value="all">Todas as diretorias</option>
-              {DIRECTORATES.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar setor ou texto"
-              aria-label="Buscar setor ou texto"
-              className="min-h-11 w-full rounded-[3px] border border-slate-300 bg-[#f7f9f9] px-3 text-[#0b1f2a] outline-none placeholder:text-slate-400 focus:border-[#0b6b88] focus:bg-white focus:ring-2 focus:ring-[#21b6c7]/20"
-            />
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={onlyEmpty}
-                onChange={(event) => setOnlyEmpty(event.target.checked)}
-                className="size-4 accent-[#0b6b88]"
-              />
-              Só os que faltam observação
-            </label>
-          </div>
-
-          {/* No celular a lista vira um seletor para não ocupar a tela. */}
-          <div className="p-3 lg:hidden">
+      {/* A tela inteira cabe na janela: nada rola fora das caixas de texto. */}
+      <main className="mx-auto grid min-h-0 w-full max-w-[1700px] flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)] gap-2.5 px-2.5 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:grid-cols-[280px_minmax(0,1fr)] lg:grid-rows-1 lg:gap-4 lg:px-6 lg:py-4">
+        <aside className="flex min-h-0 flex-col border border-slate-300 bg-white">
+          {/* No celular: só o seletor de setor, com filtros sob demanda. */}
+          <div className="flex gap-2 p-2 lg:hidden">
             <select
               value={selected?.id ?? ""}
               onChange={(event) => select(event.target.value)}
               aria-label="Setor"
-              className="min-h-11 w-full rounded-[3px] border border-[#0b6b88] bg-white px-3 text-sm font-bold text-[#0b1f2a] outline-none focus:ring-2 focus:ring-[#21b6c7]/30"
+              className="min-h-11 min-w-0 flex-1 rounded-[3px] border border-[#0b6b88] bg-white px-2 text-sm font-bold text-[#0b1f2a] outline-none focus:ring-2 focus:ring-[#21b6c7]/30"
             >
               {list.length === 0 ? <option value="">Nenhum setor encontrado</option> : null}
               {DIRECTORATES.map((name) => {
@@ -358,9 +297,64 @@ export function ObservationWorkspace() {
                 );
               })}
             </select>
+            <button
+              type="button"
+              onClick={() => setShowFilters((value) => !value)}
+              aria-expanded={showFilters}
+              className={`min-h-11 shrink-0 border px-3 ${
+                showFilters || directorate !== "all" || query || onlyEmpty
+                  ? "border-[#062d46] bg-[#062d46] text-white"
+                  : "border-slate-300 bg-white text-[#062d46]"
+              }`}
+            >
+              <span className="text-xs font-bold">Filtros</span>
+            </button>
           </div>
 
-          <ul className="hidden min-h-0 flex-1 overflow-y-auto py-1 lg:block" aria-label="Lista de setores">
+          <div
+            className={`space-y-2 border-slate-200 p-3 pt-0 lg:block lg:border-b lg:pt-3 ${
+              showFilters ? "block" : "hidden"
+            }`}
+          >
+            <p className="font-utility flex justify-between gap-2 text-[11px] font-bold text-slate-500">
+              <span className="uppercase tracking-[0.14em] text-[#0b6b88]">Setores</span>
+              <span>
+                {doneCount} de {reviewable.length} com observação
+              </span>
+            </p>
+            <select
+              value={directorate}
+              onChange={(event) => setDirectorate(event.target.value as DirectorateName | "all")}
+              aria-label="Diretoria"
+              className="min-h-10 w-full rounded-[3px] border border-slate-300 bg-white px-2.5 text-sm font-semibold text-[#173b4d] outline-none focus:border-[#0b6b88] focus:ring-2 focus:ring-[#21b6c7]/20"
+            >
+              <option value="all">Todas as diretorias</option>
+              {DIRECTORATES.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar setor ou texto"
+              aria-label="Buscar setor ou texto"
+              className="min-h-10 w-full rounded-[3px] border border-slate-300 bg-[#f7f9f9] px-2.5 text-[#0b1f2a] outline-none placeholder:text-slate-400 focus:border-[#0b6b88] focus:bg-white focus:ring-2 focus:ring-[#21b6c7]/20"
+            />
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={onlyEmpty}
+                onChange={(event) => setOnlyEmpty(event.target.checked)}
+                className="size-4 accent-[#0b6b88]"
+              />
+              Só os que faltam observação
+            </label>
+          </div>
+
+          <ul className="relative hidden min-h-0 flex-1 overflow-y-auto py-1 lg:block" aria-label="Lista de setores">
             {data.isLoading && list.length === 0 ? (
               <li className="px-3 py-3 text-sm text-slate-500">Carregando setores…</li>
             ) : null}
@@ -406,10 +400,9 @@ export function ObservationWorkspace() {
           </ul>
         </aside>
 
-        {/* Setor escolhido */}
-        <section className="min-w-0 space-y-4" aria-labelledby="observacao-titulo">
+        <section className="flex min-h-0 flex-col gap-2.5 sm:gap-3" aria-labelledby="observacao-titulo">
           {!data.isLoading && data.loadError && data.records.length === 0 ? (
-            <div className="border-l-4 border-red-600 bg-red-50 p-5 ring-1 ring-red-200">
+            <div className="shrink-0 border-l-4 border-red-600 bg-red-50 p-4 ring-1 ring-red-200">
               <p className="font-bold text-red-950">A planilha não respondeu</p>
               <p className="mt-1 text-sm text-red-800">{data.loadError}</p>
               <button
@@ -422,115 +415,135 @@ export function ObservationWorkspace() {
             </div>
           ) : null}
           {!data.isLoading && data.loadError && data.records.length > 0 ? (
-            <p className="border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200">
+            <p className="shrink-0 border-l-4 border-amber-500 bg-amber-50 px-3 py-1.5 text-sm text-amber-950 ring-1 ring-amber-200">
               A planilha não respondeu agora. Mostrando a última leitura
               {formatSyncTime(data.lastSyncAt) ? ` (${formatSyncTime(data.lastSyncAt)})` : ""}.
             </p>
           ) : null}
           {data.records.length > 0 && !supportsObservation ? (
-            <p className="border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200">
+            <p className="shrink-0 border-l-4 border-amber-500 bg-amber-50 px-3 py-1.5 text-sm text-amber-950 ring-1 ring-amber-200">
               A planilha ainda não envia a coluna E (competência revisada e observações).
               Atualize o Apps Script para poder escrever aqui.
             </p>
           ) : null}
           {data.isLoading && !selected ? (
-            <div className="h-64 animate-pulse border border-slate-300 bg-white/80" />
+            <div className="min-h-0 flex-1 animate-pulse border border-slate-300 bg-white/80" />
           ) : null}
 
           {selected ? (
             <>
-              <div className="flex flex-wrap items-end justify-between gap-3 border-l-4 border-[#f5c400] bg-white px-4 py-3 ring-1 ring-slate-200">
-                <div className="min-w-0">
-                  <p className="font-utility text-[10px] font-bold uppercase tracking-[0.16em] text-[#0b6b88] sm:text-xs">
+              <div className="flex shrink-0 items-center gap-2 border-l-4 border-[#f5c400] bg-white px-3 py-2 ring-1 ring-slate-200 sm:px-4">
+                <div className="min-w-0 flex-1">
+                  <p className="font-utility truncate text-[10px] font-bold uppercase tracking-[0.14em] text-[#0b6b88] sm:text-[11px]">
                     {selected.directorate}
                     {position >= 0 ? ` · ${position + 1} de ${list.length}` : ""}
                   </p>
                   <h2
                     id="observacao-titulo"
-                    className="mt-1 text-2xl font-black leading-tight tracking-[-0.02em] sm:text-3xl"
+                    className="truncate text-lg font-black leading-tight tracking-[-0.015em] sm:text-2xl"
+                    title={recordName(selected)}
                   >
                     {recordName(selected)}
                   </h2>
-                  {selected.previousName.trim() &&
-                  searchable(selected.previousName) !== searchable(selected.currentName) &&
-                  getStructureStatus(selected) !== "new" ? (
-                    <p className="mt-1 text-sm text-slate-600">
-                      <span className="font-semibold text-slate-500">2024:</span>{" "}
-                      {selected.previousName}
-                    </p>
-                  ) : null}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center border border-slate-300" role="group" aria-label="Tamanho do texto">
-                    <button
-                      type="button"
-                      onClick={() => changeFontSize(-1)}
-                      disabled={fontSize === FONT_SIZES[0]}
-                      aria-label="Diminuir texto"
-                      title="Diminuir texto"
-                      className="grid size-11 place-items-center text-[#062d46] hover:bg-[#eef7f8] disabled:opacity-35"
-                    >
-                      <span className="text-sm font-black">A−</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => changeFontSize(1)}
-                      disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}
-                      aria-label="Aumentar texto"
-                      title="Aumentar texto"
-                      className="grid size-11 place-items-center border-l border-slate-300 text-[#062d46] hover:bg-[#eef7f8] disabled:opacity-35"
-                    >
-                      <span className="text-lg font-black">A+</span>
-                    </button>
-                  </div>
+                <div className="hidden items-center border border-slate-300 sm:flex" role="group" aria-label="Tamanho do texto">
                   <button
                     type="button"
-                    onClick={() => goRelative(-1)}
-                    disabled={position <= 0}
-                    className="min-h-11 border border-[#062d46] bg-white px-3 text-[#062d46] hover:bg-[#e9eff0] disabled:border-slate-300 disabled:text-slate-400"
+                    onClick={() => changeFontSize(-1)}
+                    disabled={fontSize === FONT_SIZES[0]}
+                    aria-label="Diminuir texto"
+                    title="Diminuir texto"
+                    className="grid size-10 place-items-center text-[#062d46] hover:bg-[#eef7f8] disabled:opacity-35"
                   >
-                    <span className="text-sm font-bold">← Anterior</span>
+                    <span className="text-sm font-black">A−</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => goRelative(1)}
-                    disabled={position < 0 || position >= list.length - 1}
-                    className="min-h-11 border border-[#062d46] bg-white px-3 text-[#062d46] hover:bg-[#e9eff0] disabled:border-slate-300 disabled:text-slate-400"
+                    onClick={() => changeFontSize(1)}
+                    disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}
+                    aria-label="Aumentar texto"
+                    title="Aumentar texto"
+                    className="grid size-10 place-items-center border-l border-slate-300 text-[#062d46] hover:bg-[#eef7f8] disabled:opacity-35"
                   >
-                    <span className="text-sm font-bold">Próximo →</span>
+                    <span className="text-lg font-black">A+</span>
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => goRelative(-1)}
+                  disabled={position <= 0}
+                  aria-label="Setor anterior"
+                  title="Setor anterior"
+                  className="grid size-10 shrink-0 place-items-center border border-[#062d46] bg-white text-[#062d46] hover:bg-[#e9eff0] disabled:border-slate-300 disabled:text-slate-400"
+                >
+                  <span className="text-lg font-black leading-none">‹</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goRelative(1)}
+                  disabled={position < 0 || position >= list.length - 1}
+                  aria-label="Próximo setor"
+                  title="Próximo setor"
+                  className="grid size-10 shrink-0 place-items-center border border-[#062d46] bg-white text-[#062d46] hover:bg-[#e9eff0] disabled:border-slate-300 disabled:text-slate-400"
+                >
+                  <span className="text-lg font-black leading-none">›</span>
+                </button>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-                <div className="grid gap-4">
-                  <ReadingPanel
-                    title="Competência de 2024"
-                    text={getStructureStatus(selected) === "new" ? "" : selected.previousCompetence.trim()}
-                    emptyMessage={
-                      getStructureStatus(selected) === "new"
-                        ? "Estrutura nova: não existia no regimento de 2024."
-                        : "Sem texto no regimento de 2024."
-                    }
-                    accentClassName="border-t-slate-400"
-                    fontSize={fontSize}
-                  />
-                  <ReadingPanel
-                    title="Nova competência"
-                    text={selected.newCompetence.trim()}
-                    emptyMessage="A nova competência ainda não foi escrita."
-                    accentClassName="border-t-[#0b6b88]"
-                    fontSize={fontSize}
-                  />
+              {/* 2024 fica compacta: é só referência. */}
+              <section className="shrink-0 border border-slate-300 border-l-4 border-l-slate-400 bg-[#f3f6f6]">
+                <div className="flex items-center justify-between gap-2 px-3 pt-1.5">
+                  <h3 className="font-utility text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                    Competência de 2024
+                  </h3>
+                  {previousText ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreviousExpanded((value) => !value)}
+                      aria-expanded={previousExpanded}
+                      className="min-h-8 px-1 text-[#0b6b88] hover:underline"
+                    >
+                      <span className="text-xs font-bold">{previousExpanded ? "Recolher" : "Ver tudo"}</span>
+                    </button>
+                  ) : null}
                 </div>
+                {previousText ? (
+                  <div
+                    className={`px-3 pb-2 text-slate-600 ${
+                      previousExpanded ? "max-h-[28vh] overflow-y-auto" : ""
+                    }`}
+                    style={{ fontSize: Math.max(13, fontSize - 3), lineHeight: 1.5 }}
+                  >
+                    <p className={`whitespace-pre-wrap ${previousExpanded ? "" : "line-clamp-2"}`}>
+                      {previousText}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="px-3 pb-2 text-sm italic text-slate-500">
+                    {isNewStructure
+                      ? "Estrutura nova: não existia no regimento de 2024."
+                      : "Sem texto no regimento de 2024."}
+                  </p>
+                )}
+              </section>
 
-                <section className="flex flex-col border border-slate-300 border-t-4 border-t-[#f5c400] bg-white xl:sticky xl:top-[9.5rem]">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-[#fffbe6] px-4 py-2.5">
+              {/* Nova competência e observação lado a lado, do mesmo tamanho. */}
+              <div className="grid min-h-0 flex-1 grid-rows-2 gap-2.5 sm:gap-3 lg:grid-cols-2 lg:grid-rows-1">
+                <TextPanel
+                  title="Nova competência"
+                  text={selected.newCompetence.trim()}
+                  emptyMessage="A nova competência ainda não foi escrita."
+                  accentClassName="border-t-[#0b6b88]"
+                  fontSize={fontSize}
+                />
+
+                <section className="flex min-h-0 flex-col border border-slate-300 border-t-4 border-t-[#f5c400] bg-white">
+                  <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-[#fffbe6] px-4 py-1.5">
                     <label
                       htmlFor={textareaId}
                       className="font-utility text-[11px] font-bold uppercase tracking-[0.14em] text-[#6b5600]"
                     >
-                      Competência revisada e observações
+                      Observação
                     </label>
                     <button
                       type="button"
@@ -539,9 +552,12 @@ export function ObservationWorkspace() {
                         data.updateDraft(selected.id, FIELD, selected.newCompetence);
                         data.markTextCopied(selected.id, FIELD, "Texto da nova competência copiado.");
                       }}
-                      className="min-h-9 border border-[#6b5600]/40 bg-white px-3 text-[#6b5600] hover:bg-[#fff3b8] disabled:opacity-40"
+                      className="min-h-8 border border-[#6b5600]/40 bg-white px-2.5 text-[#6b5600] hover:bg-[#fff3b8] disabled:opacity-40"
                     >
-                      <span className="text-xs font-bold">Usar texto da nova competência</span>
+                      <span className="text-xs font-bold">
+                        <span className="sm:hidden">Copiar nova</span>
+                        <span className="hidden sm:inline">Usar texto da nova competência</span>
+                      </span>
                     </button>
                   </div>
                   <textarea
@@ -551,11 +567,31 @@ export function ObservationWorkspace() {
                     onChange={(event) => data.updateDraft(selected.id, FIELD, event.target.value)}
                     onKeyDown={onTextareaKeyDown}
                     placeholder="Escreva a competência revisada ou as observações (ex.: atribuição repetida em outra função ou setor)"
-                    className="block min-h-[45vh] w-full resize-y border-0 px-4 py-3 text-[#0b1f2a] outline-none placeholder:text-slate-400 focus:bg-[#fffef7] disabled:bg-slate-50 xl:h-[calc(100dvh-27rem)] xl:min-h-64 xl:resize-none"
-                    style={{ fontSize: fontSize + 1, lineHeight: 1.7 }}
+                    className="block min-h-0 w-full flex-1 resize-none border-0 px-4 py-3 text-[#0b1f2a] outline-none placeholder:text-slate-400 focus:bg-[#fffef7] disabled:bg-slate-50"
+                    style={{ fontSize, lineHeight: 1.65 }}
                   />
-                  <div className="hidden items-center gap-3 border-t border-slate-200 bg-[#f7f9f9] px-4 py-2.5 lg:flex">
-                    {saveBar}
+                  <div className="flex shrink-0 items-center gap-2 border-t border-slate-200 bg-[#f7f9f9] px-3 py-2 sm:gap-3 sm:px-4">
+                    <p role="status" aria-live="polite" className={`min-w-0 flex-1 truncate text-xs sm:text-sm ${statusClass}`}>
+                      {statusText}
+                    </p>
+                    {saveState === "conflict" ? (
+                      <button
+                        type="button"
+                        onClick={() => void data.refresh({ fresh: true })}
+                        className="min-h-10 border border-amber-600 bg-white px-3 text-amber-900 hover:bg-amber-50"
+                      >
+                        <span className="text-sm font-bold">Recarregar</span>
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={save}
+                      disabled={!canEdit || !isDirty || isSaving}
+                      title="Salvar (Ctrl+S)"
+                      className="min-h-10 shrink-0 bg-[#062d46] px-4 text-white hover:bg-[#0b6b88] disabled:bg-slate-300 disabled:text-slate-500 sm:px-5"
+                    >
+                      <span className="text-sm font-black">{isSaving ? "Salvando…" : "Salvar"}</span>
+                    </button>
                   </div>
                 </section>
               </div>
@@ -563,13 +599,6 @@ export function ObservationWorkspace() {
           ) : null}
         </section>
       </main>
-
-      {/* No celular a barra de salvar fica presa embaixo da tela. */}
-      {selected ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-300 bg-white/95 px-3 py-2.5 shadow-[0_-10px_30px_-20px_rgba(6,45,70,0.6)] backdrop-blur sm:px-5 lg:hidden">
-          <div className="flex items-center gap-3">{saveBar}</div>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -33,7 +33,7 @@ O navegador nunca recebe o token do Apps Script. O portal lê as nove abas por u
 
 ## Observações
 
-A rota `/observacao` é uma tela para escrever a competência revisada e as observações (coluna E) com calma: um setor por vez, com a competência de 2024 e a nova competência em letra grande ao lado de um campo amplo. Tem busca, filtro por diretoria, "só os que faltam", anterior/próximo, ajuste do tamanho do texto e Ctrl+S para salvar. O link `/observacao?id=…` abre direto num setor; cada setor da página inicial tem um atalho para isso.
+A rota `/observacao` é uma tela para escrever a competência revisada e as observações (coluna E) com calma: um setor por vez, sem rolar a página: a nova competência e o campo de observação lado a lado, ocupando a tela, e a competência de 2024 resumida em cima (com "Ver tudo"). Tem busca, filtro por diretoria, "só os que faltam", anterior/próximo, ajuste do tamanho do texto e Ctrl+S para salvar. O link `/observacao?id=…` abre direto num setor; cada setor da página inicial tem um atalho para isso.
 
 ## Organograma
 
