@@ -50,5 +50,8 @@ O código do Apps Script vinculado à planilha fica em `apps-script/Code.gs`. Pa
 2. Em **Configurações do projeto → Propriedades do script**, crie `PORTAL_TOKEN` com o mesmo valor de `GOOGLE_SHEETS_WEBAPP_TOKEN` (ou cole o token em `TOKEN_FIXO`).
 3. Selecione a função `prepararColunaCompetenciaRevisada` e clique em **Executar** uma vez: ela cria o cabeçalho e a formatação da coluna E em todas as abas.
 4. Em **Implantar → Gerenciar implantações**, edite a implantação atual e escolha **Nova versão**. Assim a URL do Web App continua a mesma e nada muda na Vercel.
+5. Opcional, para quase nunca esperar a leitura completa: selecione a função `instalarAquecimento` e clique em **Executar** uma vez. Ela cria um gatilho que deixa a cópia dos dados pronta a cada 10 minutos.
+
+O Apps Script guarda uma cópia da leitura das nove abas por até 6 horas. Cada gravação pelo portal atualiza só a linha salva dentro dessa cópia, e qualquer edição feita direto na planilha apaga a cópia (gatilho `onEdit`), então os dados nunca ficam velhos. O tempo de cada chamada aparece nos logs da Vercel como `[planilha] GET ok em …ms`.
 
 Enquanto o Apps Script publicado não enviar a coluna E, o portal continua funcionando normalmente e apenas não mostra o campo de competência revisada.

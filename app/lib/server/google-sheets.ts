@@ -113,6 +113,8 @@ async function requestJson(
       );
     }
 
+    // Tempo de cada chamada nos logs da Vercel, para acompanhar a lentidão.
+    console.info(`[planilha] ${init.method ?? "GET"} ok em ${elapsed()}`);
     return body;
   } catch (error) {
     if (error instanceof GoogleSheetsError) throw error;

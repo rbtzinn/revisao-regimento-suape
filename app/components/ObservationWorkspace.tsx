@@ -29,7 +29,7 @@ const FIELD = "reviewedCompetence";
 const FONT_SIZES = [15, 17, 19, 22];
 const FONT_SIZE_KEY = "observacao-tamanho-texto";
 
-type ObservationStatus = "done" | "draft" | "empty";
+type ObservationStatus = "done" | "draft" | "empty" | "error";
 
 function searchable(value: string) {
   return value
@@ -72,12 +72,14 @@ const statusDot: Record<ObservationStatus, string> = {
   done: "bg-emerald-500",
   draft: "bg-amber-500",
   empty: "bg-slate-300",
+  error: "bg-red-600",
 };
 
 const statusLabel: Record<ObservationStatus, string> = {
   done: "Com observação",
   draft: "Alteração não salva",
   empty: "Sem observação",
+  error: "Não foi possível salvar",
 };
 
 /** Caixa de texto que ocupa o espaço disponível e rola por dentro. */
@@ -151,11 +153,13 @@ export function ObservationWorkspace() {
 
   const statusOf = useCallback(
     (record: CompetencyRecord): ObservationStatus => {
+      const state = data.saveStates[draftKey(record.id, FIELD)];
+      if (state === "error" || state === "conflict") return "error";
       const saved = record.reviewedCompetence ?? "";
       if (draftOf(record) !== saved) return "draft";
       return saved.trim() ? "done" : "empty";
     },
-    [draftOf],
+    [draftOf, data.saveStates],
   );
 
   // Estruturas fora do organograma atual não recebem observação.
@@ -202,7 +206,7 @@ export function ObservationWorkspace() {
   }
 
   const doneCount = reviewable.filter((record) => statusOf(record) === "done").length;
-  const hasUnsaved = reviewable.some((record) => statusOf(record) === "draft");
+  const hasUnsaved = reviewable.some((record) => draftOf(record) !== (record.reviewedCompetence ?? ""));
 
   // Avisa antes de fechar a aba com texto não salvo.
   useEffect(() => {
@@ -228,9 +232,20 @@ export function ObservationWorkspace() {
     void data.saveRecord(selected.id, FIELD);
   }
 
+  // Não espera o Apps Script: a gravação segue em segundo plano e a bolinha
+  // do setor na lista mostra se deu certo.
+  const nextRecord = position >= 0 ? list[position + 1] : undefined;
+  function saveAndNext() {
+    save();
+    if (nextRecord) select(nextRecord.id);
+  }
+
   function onTextareaKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
     const modifier = event.ctrlKey || event.metaKey;
-    if (modifier && (event.key === "s" || event.key === "Enter")) {
+    if (modifier && event.key === "Enter") {
+      event.preventDefault();
+      saveAndNext();
+    } else if (modifier && event.key === "s") {
       event.preventDefault();
       save();
     }
@@ -289,7 +304,7 @@ export function ObservationWorkspace() {
                   <optgroup key={name} label={name}>
                     {items.map((record) => (
                       <option key={record.id} value={record.id}>
-                        {statusOf(record) === "done" ? "✓ " : statusOf(record) === "draft" ? "• " : ""}
+                        {{ done: "✓ ", draft: "• ", error: "⚠ ", empty: "" }[statusOf(record)]}
                         {recordName(record)}
                       </option>
                     ))}
@@ -581,6 +596,17 @@ export function ObservationWorkspace() {
                         className="min-h-10 border border-amber-600 bg-white px-3 text-amber-900 hover:bg-amber-50"
                       >
                         <span className="text-sm font-bold">Recarregar</span>
+                      </button>
+                    ) : null}
+                    {nextRecord ? (
+                      <button
+                        type="button"
+                        onClick={saveAndNext}
+                        disabled={!canEdit || !isDirty || isSaving}
+                        title="Salvar e ir para o próximo setor (Ctrl+Enter)"
+                        className="min-h-10 shrink-0 border border-[#062d46] bg-white px-3 text-[#062d46] hover:bg-[#e9eff0] disabled:border-slate-300 disabled:text-slate-400"
+                      >
+                        <span className="text-sm font-bold">Salvar e próximo</span>
                       </button>
                     ) : null}
                     <button

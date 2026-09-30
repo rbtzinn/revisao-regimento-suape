@@ -39,9 +39,11 @@ const FIELD_COLUMNS = {
 const REVIEWED_HEADER = "COMPETÊNCIA REVISADA (APÓS REVISÃO)";
 
 // Cópia da leitura completa, para não abrir as 9 abas a cada acesso.
-// É apagada a cada gravação pelo portal e a cada edição feita na planilha.
+// Cada gravação pelo portal atualiza só a linha salva dentro da cópia;
+// uma edição feita direto na planilha apaga a cópia (gatilho onEdit).
+// Por isso ela pode durar o máximo que o Google permite (6 horas).
 const CACHE_KEY = "records-v1";
-const CACHE_SECONDS = 600;
+const CACHE_SECONDS = 21600;
 // O CacheService aceita até 100 KB por item; letras acentuadas ocupam mais
 // de um byte, então cada pedaço fica bem abaixo do limite.
 const CACHE_CHUNK_SIZE = 30000;
@@ -52,48 +54,49 @@ function doGet(e) {
       return failure("UNAUTHORIZED", "Token inválido.");
     }
 
-    const cached = readCache();
-    if (cached) {
-      return ContentService.createTextOutput(cached).setMimeType(
-        ContentService.MimeType.JSON,
-      );
+    let body = readCache();
+    if (!body) {
+      body = buildRecordsBody();
+      writeCache(body);
     }
-
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const records = [];
-
-    DIRECTORATES.forEach(function (directorate) {
-      const sheet = spreadsheet.getSheetByName(directorate);
-      if (!sheet) return;
-
-      const lastRow = sheet.getLastRow();
-      if (lastRow < FIRST_DATA_ROW) return;
-
-      const values = sheet
-        .getRange(FIRST_DATA_ROW, 1, lastRow - FIRST_DATA_ROW + 1, COLUMN_COUNT)
-        .getDisplayValues();
-
-      values.forEach(function (row, index) {
-        const isEmpty = row.slice(0, 4).every(function (cell) {
-          return String(cell).trim() === "";
-        });
-        if (isEmpty) return;
-        records.push(toRecord(sheet, directorate, FIRST_DATA_ROW + index, row));
-      });
-    });
-
-    const body = JSON.stringify({
-      ok: true,
-      records: records,
-      generatedAt: new Date().toISOString(),
-    });
-    writeCache(body);
     return ContentService.createTextOutput(body).setMimeType(
       ContentService.MimeType.JSON,
     );
   } catch (error) {
     return failure("INTERNAL", String(error && error.message ? error.message : error));
   }
+}
+
+/** Lê as 9 abas (a parte lenta) e monta a resposta em JSON. */
+function buildRecordsBody() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const records = [];
+
+  DIRECTORATES.forEach(function (directorate) {
+    const sheet = spreadsheet.getSheetByName(directorate);
+    if (!sheet) return;
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow < FIRST_DATA_ROW) return;
+
+    const values = sheet
+      .getRange(FIRST_DATA_ROW, 1, lastRow - FIRST_DATA_ROW + 1, COLUMN_COUNT)
+      .getDisplayValues();
+
+    values.forEach(function (row, index) {
+      const isEmpty = row.slice(0, 4).every(function (cell) {
+        return String(cell).trim() === "";
+      });
+      if (isEmpty) return;
+      records.push(toRecord(sheet, directorate, FIRST_DATA_ROW + index, row));
+    });
+  });
+
+  return JSON.stringify({
+    ok: true,
+    records: records,
+    generatedAt: new Date().toISOString(),
+  });
 }
 
 function doPost(e) {
@@ -150,13 +153,11 @@ function doPost(e) {
     const row = sheet.getRange(rowNumber, 1, 1, COLUMN_COUNT).getDisplayValues()[0];
     cell.setValue(input.competence);
     row[column - 1] = input.competence;
-    clearCache();
+    const record = toRecord(sheet, input.directorate, rowNumber, row);
+    const updatedAt = new Date().toISOString();
+    updateCachedRecord(record, updatedAt);
 
-    return json({
-      ok: true,
-      record: toRecord(sheet, input.directorate, rowNumber, row),
-      updatedAt: new Date().toISOString(),
-    });
+    return json({ ok: true, record: record, updatedAt: updatedAt });
   } finally {
     lock.releaseLock();
   }
@@ -202,6 +203,50 @@ function writeCache(body) {
 
 function clearCache() {
   CacheService.getScriptCache().remove(CACHE_KEY + ":count");
+}
+
+/**
+ * Troca só a linha salva dentro da cópia, em vez de apagá-la. Assim a
+ * próxima leitura continua rápida. Roda dentro do lock da gravação.
+ */
+function updateCachedRecord(record, updatedAt) {
+  const cached = readCache();
+  if (!cached) return;
+  try {
+    const value = JSON.parse(cached);
+    let found = false;
+    value.records = value.records.map(function (item) {
+      if (item.id !== record.id) return item;
+      found = true;
+      return record;
+    });
+    if (!found) {
+      clearCache();
+      return;
+    }
+    value.generatedAt = updatedAt;
+    writeCache(JSON.stringify(value));
+  } catch (error) {
+    clearCache();
+  }
+}
+
+/**
+ * Opcional: mantém a cópia sempre pronta. Execute `instalarAquecimento`
+ * uma vez pelo editor; ele cria um gatilho que roda isto a cada 10 minutos.
+ */
+function aquecerCache() {
+  if (!readCache()) writeCache(buildRecordsBody());
+}
+
+function instalarAquecimento() {
+  const exists = ScriptApp.getProjectTriggers().some(function (trigger) {
+    return trigger.getHandlerFunction() === "aquecerCache";
+  });
+  if (!exists) {
+    ScriptApp.newTrigger("aquecerCache").timeBased().everyMinutes(10).create();
+  }
+  aquecerCache();
 }
 
 /**
