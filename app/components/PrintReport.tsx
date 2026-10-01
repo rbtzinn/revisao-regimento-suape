@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   getStructureStatus,
   isRecordCompleted,
@@ -123,7 +124,7 @@ function ReportRecord({
   );
 }
 
-export function PrintReport({
+function PrintReportView({
   records,
   directorateLabel,
   filter,
@@ -176,3 +177,9 @@ export function PrintReport({
     </section>
   );
 }
+
+/**
+ * Relatório escondido que só aparece na impressão. Com memo, ele não é
+ * redesenhado a cada letra digitada (as props não mudam enquanto se digita).
+ */
+export const PrintReport = memo(PrintReportView);

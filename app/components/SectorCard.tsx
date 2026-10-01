@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { memo, useId, useState } from "react";
 import Link from "next/link";
 import type { CompetencyField, CompetencyRecord } from "@/app/lib/types";
 import {
@@ -37,7 +37,7 @@ const stripeClasses: Record<StructureStatus, string> = {
   removed: "bg-rose-500",
 };
 
-export function SectorCard({
+function SectorCardView({
   record,
   editors,
   onDraftChange,
@@ -220,3 +220,26 @@ export function SectorCard({
     </article>
   );
 }
+
+function sameEditor(a: FieldEditorState, b: FieldEditorState) {
+  return (
+    a.draft === b.draft &&
+    a.saveState === b.saveState &&
+    a.feedbackMessage === b.feedbackMessage
+  );
+}
+
+/**
+ * Ao digitar, só o cartão daquele setor é redesenhado, e não os mais de
+ * cem cartões da lista. As funções recebidas dependem só do id do setor e
+ * de funções estáveis do hook, por isso não entram na comparação.
+ */
+export const SectorCard = memo(
+  SectorCardView,
+  (previous, next) =>
+    previous.record === next.record &&
+    previous.defaultExpanded === next.defaultExpanded &&
+    previous.disabled === next.disabled &&
+    sameEditor(previous.editors.newCompetence, next.editors.newCompetence) &&
+    sameEditor(previous.editors.reviewedCompetence, next.editors.reviewedCompetence),
+);
