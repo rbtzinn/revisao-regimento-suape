@@ -570,6 +570,54 @@ textarea {
     text-align: center;
   }
 
+  .observation-report__progress {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3mm;
+    padding: 5mm;
+  }
+
+  .observation-report__progress p {
+    margin: 0;
+    padding: 0;
+  }
+
+  .observation-report__bar {
+    height: 3mm;
+    overflow: hidden;
+    background: #dfe8ef;
+  }
+
+  .observation-report__bar span {
+    display: block;
+    height: 100%;
+    background: #1aa3b0;
+  }
+
+  .observation-report__table th:first-child,
+  .observation-report__table td:first-child {
+    width: auto;
+  }
+
+  .observation-report__table th:nth-child(2),
+  .observation-report__table td:nth-child(2) {
+    width: 42mm;
+    text-align: right;
+  }
+
+  .observation-report__table td:nth-child(2) {
+    font-weight: 600;
+  }
+
+  .observation-report__table td.is-missing {
+    color: #b45309;
+  }
+
+  .observation-report__table td.is-done {
+    color: #047857;
+  }
+
   .no-print {
     display: none !important;
   }
