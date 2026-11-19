@@ -9,6 +9,11 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ObservationReport,
+  observationReportFileName,
+  summarizeMissingObservations,
+} from "@/app/components/ObservationReport";
 import { ProductHeader } from "@/app/components/ProductHeader";
 import {
   clearRecordsSnapshot,
@@ -251,6 +256,22 @@ export function ObservationWorkspace() {
     }
   }
 
+  const missingCount = useMemo(
+    () => summarizeMissingObservations(data.records).missing,
+    [data.records],
+  );
+
+  function exportReport() {
+    const previousTitle = document.title;
+    // O título vira o nome sugerido do arquivo ao salvar como PDF.
+    document.title = observationReportFileName(data.lastSyncAt);
+    try {
+      window.print();
+    } finally {
+      document.title = previousTitle;
+    }
+  }
+
   async function signOut() {
     clearRecordsSnapshot();
     try {
@@ -270,7 +291,8 @@ export function ObservationWorkspace() {
   const previousText = selected && !isNewStructure ? selected.previousCompetence.trim() : "";
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden text-[#0b1f2a]">
+    <>
+    <div className="no-print flex h-dvh flex-col overflow-hidden text-[#0b1f2a]">
       <ProductHeader
         title="Observações da revisão"
         mobileTitle="Observações"
@@ -367,6 +389,18 @@ export function ObservationWorkspace() {
               />
               Só os que faltam observação
             </label>
+            <button
+              type="button"
+              onClick={exportReport}
+              disabled={data.isLoading || data.records.length === 0 || !supportsObservation}
+              title="Relatório em PDF dos setores com nova competência e sem observação"
+              className="flex min-h-10 w-full items-center justify-center gap-2 border border-[#062d46] bg-white px-3 text-[#062d46] hover:bg-[#e9eff0] disabled:border-slate-300 disabled:text-slate-400"
+            >
+              <span aria-hidden="true" className="text-base leading-none">↓</span>
+              <span className="text-xs font-black sm:text-sm">
+                Relatório de pendentes{data.records.length > 0 ? ` (${missingCount})` : ""}
+              </span>
+            </button>
           </div>
 
           <ul className="relative hidden min-h-0 flex-1 overflow-y-auto py-1 lg:block" aria-label="Lista de setores">
@@ -626,5 +660,7 @@ export function ObservationWorkspace() {
         </section>
       </main>
     </div>
+    <ObservationReport records={data.records} generatedAt={data.lastSyncAt} />
+    </>
   );
 }
